@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+# The Python template's lib/ rule above would swallow the frontend's source
+# directory, which is not a Python build artifact.
+!frontend/src/lib/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Rust
+target/
+rust/quoridor-wasm/pkg/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+
+# Training output and experiment tracking
+runs/
+wandb/
+wandbmodels/
+mlruns/
+models/
+
+# Local environment
+.env
+.claude/settings.local.json
