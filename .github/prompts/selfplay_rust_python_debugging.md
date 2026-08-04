@@ -213,4 +213,3 @@ Now that deterministic MCTS parity is passing, validate that training consumes R
 | `rust/src/grid_helpers.rs` | Rust ResNet tensor construction |
 | `src/agents/alphazero/resnet_network.py` | Python ResNet tensor construction |
 | `ci_requirements.txt` | CI Python deps (CPU-only torch) |
-| `coding-agents/results-step-trace-consistency-test.md` | Results of Idea A |

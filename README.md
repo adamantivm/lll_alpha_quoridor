@@ -159,7 +159,6 @@ scripts/bench_rust_selfplay.sh experiments/B5W2/cucu-01.yaml rust/fixtures/alpha
 | `test/` | Python test suite |
 | `experiments/` | Training configs, including the `B5W2/` proven recipe and `ci.yaml` |
 | `scripts/` | `bench_rust_selfplay.sh`, for throughput benchmarking |
-| `coding-agents/` | Design notes and results from past feature work |
 | `docs/superpowers/specs/` | Design docs for individual features |
 | `docs/superpowers/plans/` | Step-by-step implementation plans for individual features |
 
