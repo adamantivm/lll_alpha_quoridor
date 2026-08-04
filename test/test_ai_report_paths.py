@@ -8,14 +8,13 @@ from v2 import ai_report
 
 
 def test_repo_root_is_the_repository_root():
-    # ai_report.py lives at <repo>/src/v2/ai_report.py
-    expected = Path(ai_report.__file__).resolve().parent.parent.parent
+    expected = ai_report._repo_root()
     assert (expected / "src" / "v2" / "config.py").is_file()
     assert (expected / "pytest.ini").is_file()
 
 
 def test_prompt_source_paths_all_exist():
-    repo_root = Path(ai_report.__file__).resolve().parent.parent.parent
+    repo_root = ai_report._repo_root()
     prompt = ai_report._build_on_demand_prompt(
         project="p",
         group="g",

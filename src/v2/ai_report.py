@@ -43,6 +43,15 @@ SUPPORTED_AIS = ("claude",)
 AI_SUBPROCESS_TIMEOUT_SECONDS = 20 * 60
 
 
+def _repo_root() -> Path:
+    """Return the repository root.
+
+    ai_report.py lives at <repo>/src/v2/ai_report.py
+    -> parents: v2 -> src -> <repo root>
+    """
+    return Path(__file__).resolve().parent.parent.parent
+
+
 # ---------------------------------------------------------------------------
 # AI backend abstraction
 # ---------------------------------------------------------------------------
@@ -446,9 +455,7 @@ def generate_on_demand_report(
     backend = backend_for(ai, model=model)
     backend.check_available()
 
-    # ai_report.py lives at <repo>/src/v2/ai_report.py
-    # -> parents: v2 -> src -> <repo root>
-    repo_root = Path(__file__).resolve().parent.parent.parent
+    repo_root = _repo_root()
 
     with tempfile.TemporaryDirectory(prefix="ai_report_on_demand_") as tmp:
         metrics_snapshot = Path(tmp) / "metrics.json"

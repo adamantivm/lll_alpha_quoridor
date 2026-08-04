@@ -17,8 +17,10 @@ initial_random_seed = None
 def resolve_path(dir: str, filename: Optional[str] = None) -> Path:
     path = Path(dir)
     if not path.is_absolute():
+        # misc.py lives at <repo>/src/utils/misc.py
+        # -> parents: utils -> src -> <repo root>
         # Update this if this file is moved
-        path = Path(__file__).resolve().parents[3] / path
+        path = Path(__file__).resolve().parents[2] / path
 
     return path / filename if filename else path
 
