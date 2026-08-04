@@ -2,8 +2,10 @@
 # nvidia dependencies, which cause us to run out of disk space on
 # github action runners.
 --extra-index-url https://download.pytorch.org/whl/cpu
+absl-py
 gymnasium
 matplotlib
+networkx
 numba
 numpy
 open_spiel==1.5
