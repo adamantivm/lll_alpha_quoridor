@@ -46,6 +46,7 @@ wandb/
 wandbmodels/
 mlruns/
 models/
+game_recording.yaml
 
 # Local environment
 .env
