@@ -44,11 +44,7 @@ def _runs_path(project: str, entity: str | None) -> str:
 
 def _clean_summary(summary: dict) -> dict:
     """Strip wandb-internal and bookkeeping keys from a summary dict."""
-    return {
-        k: v
-        for k, v in summary.items()
-        if not k.startswith("_") and not k.startswith("time-")
-    }
+    return {k: v for k, v in summary.items() if not k.startswith("_") and not k.startswith("time-")}
 
 
 def dump_group_metrics(
@@ -95,9 +91,7 @@ def dump_group_metrics(
         history: list[dict] = []
         try:
             # run.history with pandas=False returns a list of dicts.
-            history = list(
-                run.history(keys=metric_keys, samples=history_samples, pandas=False)
-            )
+            history = list(run.history(keys=metric_keys, samples=history_samples, pandas=False))
         except Exception as exc:
             history = []
             print(f"[wandb_metrics] failed to fetch history for {run.name}: {exc}")

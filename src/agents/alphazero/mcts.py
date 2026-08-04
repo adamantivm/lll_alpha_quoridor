@@ -28,9 +28,9 @@ class Node:
     ):
         if game is None:
             assert parent is not None, "When constructing a node without a game, the parent should be provided"
-            assert action_taken is not None, (
-                "When constructing a node without a game, the action_taken should be provided"
-            )
+            assert (
+                action_taken is not None
+            ), "When constructing a node without a game, the action_taken should be provided"
 
         self._game = game
         self.parent = parent

@@ -41,7 +41,7 @@ class ArenaResults3Renderer(Renderer):
 
         table = PrettyTable()
         table.field_names = ["Matchup", "Wins", "Losses", "Ties"]
-        table.align="l"
+        table.align = "l"
 
         def add_row(games, matchup, for_p2=False):
             if matchup in games:
@@ -57,15 +57,15 @@ class ArenaResults3Renderer(Renderer):
             wins_key = "losses" if for_p2 else "wins"
             losses_key = "wins" if for_p2 else "losses"
             num_wins = 0
-            num_losses= 0
+            num_losses = 0
             num_ties = 0
             for matchup in games:
                 if not for_p2 and matchup[0] == player or for_p2 and matchup[1] == player:
                     num_wins += games[matchup][wins_key]
-                    num_losses+= games[matchup][losses_key]
+                    num_losses += games[matchup][losses_key]
                     num_ties += games[matchup]["ties"]
 
-            num_games = num_wins + num_losses+ num_ties
+            num_games = num_wins + num_losses + num_ties
             win_perc = perc(num_wins, num_games)
             loss_perc = perc(num_losses, num_games)
             tie_perc = perc(num_ties, num_games)

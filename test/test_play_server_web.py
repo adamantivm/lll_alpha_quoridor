@@ -63,7 +63,7 @@ def test_build_config_view_board_and_defaults(tmp_path):
     assert d["mcts_n"] == 123
     assert d["mcts_c_puct"] == 1.4
     assert d["leaf_parallelism"] == 16  # SelfPlayConfig default
-    assert d["virtual_loss"] == 3       # SelfPlayConfig default
+    assert d["virtual_loss"] == 3  # SelfPlayConfig default
     # No self_play.alphazero block in the minimal config:
     assert d["temperature"] is None
     assert d["mcts_noise_epsilon"] == 0.0

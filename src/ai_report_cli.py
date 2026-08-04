@@ -68,8 +68,7 @@ def main() -> int:
     args = parser.parse_args()
 
     print(
-        f"Fetching wandb metrics for group '{args.run_id}' "
-        f"from project '{args.project}'...",
+        f"Fetching wandb metrics for group '{args.run_id}' " f"from project '{args.project}'...",
         file=sys.stderr,
     )
     model_label = args.model or "default"

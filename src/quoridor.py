@@ -390,9 +390,9 @@ class Quoridor:
         Turning off validation can save some computation if you're sure the action is valid,
         and also makes it easier to teleport players around the board for testing purposes.
         """
-        assert not validate or self.is_action_valid(action), (
-            f"Invalid action: {action} for player {self.current_player}, in board {self.board}"
-        )
+        assert not validate or self.is_action_valid(
+            action
+        ), f"Invalid action: {action} for player {self.current_player}, in board {self.board}"
 
         if isinstance(action, MoveAction):
             self.board.move_player(self.current_player, action.destination)

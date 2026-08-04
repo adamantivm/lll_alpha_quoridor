@@ -275,9 +275,9 @@ class NNEvaluator:
         target_values = torch.stack(target_values).to(self.device)
         action_masks = torch.stack(action_masks).to(self.device)
 
-        assert not (inputs.isnan().any() or target_policies.isnan().any() or target_values.isnan().any()), (
-            "NaN in training data"
-        )
+        assert not (
+            inputs.isnan().any() or target_policies.isnan().any() or target_values.isnan().any()
+        ), "NaN in training data"
 
         # Forward pass
         pred_logits, pred_values = self.network(inputs)

@@ -4,6 +4,7 @@ The Rust self-play binary writes one raw-aggregate record per (model_version, pi
 to a metrics directory. This module combines a version's records across processes,
 computes the final metrics, and logs them to a W&B run in the training group.
 """
+
 import glob
 import json
 import math

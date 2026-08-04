@@ -26,8 +26,11 @@ import sys
 from pathlib import Path
 
 if len(sys.argv) < 4:
-  print("Usage: python step_trace_reference.py <src_dir> <board_size> <max_walls> <action_idx_0> [action_idx_1 ...]", file=sys.stderr)
-  sys.exit(2)
+    print(
+        "Usage: python step_trace_reference.py <src_dir> <board_size> <max_walls> <action_idx_0> [action_idx_1 ...]",
+        file=sys.stderr,
+    )
+    sys.exit(2)
 
 src_dir = Path(sys.argv[1])
 board_size = int(sys.argv[2])

@@ -25,9 +25,7 @@ def main(args) -> int:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Serve the Quoridor browser play app + model files + config API."
-    )
+    parser = argparse.ArgumentParser(description="Serve the Quoridor browser play app + model files + config API.")
     parser.add_argument(
         "play_dir",
         type=str,

@@ -245,17 +245,14 @@ def resolve_db_path(db_path: str) -> str:
     """
     if not db_path.startswith("wandb:"):
         return db_path
-    artifact_ref = db_path[len("wandb:"):]
+    artifact_ref = db_path[len("wandb:") :]
     print(f"Fetching wandb artifact: {artifact_ref}")
     api = wandb.Api()
     artifact = api.artifact(artifact_ref, type="policy_db")
     download_dir = artifact.download()
     parquet_files = list(Path(download_dir).glob("*.parquet"))
     if len(parquet_files) != 1:
-        raise RuntimeError(
-            f"Expected exactly one .parquet in artifact {artifact_ref}, "
-            f"found {parquet_files}"
-        )
+        raise RuntimeError(f"Expected exactly one .parquet in artifact {artifact_ref}, " f"found {parquet_files}")
     print(f"Using downloaded DB: {parquet_files[0]}")
     return str(parquet_files[0])
 

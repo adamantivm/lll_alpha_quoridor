@@ -292,9 +292,7 @@ def explain_trace_steps(metadata, steps, trace_path: Path):
             )
 
         for _, idx, visits_text, probability, action_text in sorted(explained_children)[:12]:
-            print(
-                f"child idx={idx} visits~={visits_text} prob={probability:.8f} action={action_text}"
-            )
+            print(f"child idx={idx} visits~={visits_text} prob={probability:.8f} action={action_text}")
 
 
 def explain_trace_file(trace_path: Path):
