@@ -1,12 +1,13 @@
 <script lang="ts">
-  import type { ConfigView, ModelsView } from "./api";
-  let { config, models, model, params, humanPlayer, onchange, onhumanplayer }: {
-    config: ConfigView | null;
-    models: ModelsView | null;
-    model: string;
-    params: { mctsN: number; cPuct: number; leafParallelism: number; virtualLoss: number };
+  import type { ModelEntry } from "./models";
+  type Params = { mctsN: number; cPuct: number; leafParallelism: number; virtualLoss: number };
+  let { models, selected, params, humanPlayer, onmodel, onparams, onhumanplayer }: {
+    models: ModelEntry[];
+    selected: ModelEntry;
+    params: Params;
     humanPlayer: number;
-    onchange: (o: { model: string; params: typeof params }) => void;
+    onmodel: (entry: ModelEntry) => void;
+    onparams: (params: Params) => void;
     onhumanplayer: (p: number) => void;
   } = $props();
 </script>
@@ -14,10 +15,15 @@
 <div class="drawer">
   <h3>Setup</h3>
   <label>Model
-    <select value={model} onchange={(e) => onchange({ model: e.currentTarget.value, params })}>
-      {#each models?.models ?? [] as m}<option value={m}>{m}</option>{/each}
+    <select value={selected.id}
+      onchange={(e) => {
+        const m = models.find((x) => x.id === e.currentTarget.value);
+        if (m) onmodel(m);
+      }}>
+      {#each models as m}<option value={m.id}>{m.label}</option>{/each}
     </select>
   </label>
+  <small class="hint">{selected.board_size}×{selected.board_size} board, {selected.max_walls} walls each. Switching starts a new game.</small>
 
   <div class="who">
     <span class="who-label">You play</span>
@@ -38,15 +44,15 @@
 
   <label>MCTS sims: {params.mctsN}
     <input type="range" min="16" max="2000" step="16" value={params.mctsN}
-      oninput={(e) => onchange({ model, params: { ...params, mctsN: +e.currentTarget.value } })} />
+      oninput={(e) => onparams({ ...params, mctsN: +e.currentTarget.value })} />
   </label>
   <label>c_puct: {params.cPuct}
     <input type="range" min="0.5" max="3" step="0.1" value={params.cPuct}
-      oninput={(e) => onchange({ model, params: { ...params, cPuct: +e.currentTarget.value } })} />
+      oninput={(e) => onparams({ ...params, cPuct: +e.currentTarget.value })} />
   </label>
   <label>leaf parallelism: {params.leafParallelism}
     <input type="range" min="1" max="32" step="1" value={params.leafParallelism}
-      oninput={(e) => onchange({ model, params: { ...params, leafParallelism: +e.currentTarget.value } })} />
+      oninput={(e) => onparams({ ...params, leafParallelism: +e.currentTarget.value })} />
   </label>
 </div>
 
