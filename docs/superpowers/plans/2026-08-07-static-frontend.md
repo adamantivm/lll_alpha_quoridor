@@ -531,7 +531,7 @@ until deploy day."
 ### Task 4: Rewire the UI
 
 **Files:**
-- Modify: `frontend/src/App.svelte`, `frontend/src/lib/ConfigDrawer.svelte`
+- Modify: `frontend/src/App.svelte`, `frontend/src/lib/ConfigDrawer.svelte`, `frontend/src/lib/aiClient.ts`
 - Delete: `frontend/src/lib/api.ts`, `frontend/src/lib/api.test.ts`
 
 **Interfaces:**
@@ -679,7 +679,30 @@ Replace each of the three slider `oninput` handlers to call `onparams`:
 
 Leave the "You play" segmented control and the `<style>` block unchanged.
 
-- [ ] **Step 4: Delete the fetch-based API client**
+- [ ] **Step 4: Update `aiClient.ts` to accept the new call shape**
+
+`aiClient` is the typed seam between `App.svelte` and the worker, so its
+signature has to move with its caller — otherwise `svelte-check` fails on the
+`newGame` call above. In `frontend/src/lib/aiClient.ts`, replace the `newGame`
+method:
+
+```ts
+  newGame(o: {
+    modelUrl: string; ortBase: string; boardSize: number; maxWalls: number;
+    maxSteps: number; humanPlayer: number; params: Params;
+  }) {
+    // `params` may be a Svelte $state proxy, which postMessage can't structure-
+    // clone (DataCloneError). Spread into a plain object first.
+    this.worker.postMessage({ type: "newGame", ...o, params: { ...o.params } });
+  }
+```
+
+Everything else in the file is unchanged. The worker on the other end of that
+`postMessage` still reads `m.model` and ignores `m.ortBase`; Task 5 fixes that.
+The app therefore builds and type-checks after this task but cannot load a
+model until Task 5 lands.
+
+- [ ] **Step 5: Delete the fetch-based API client**
 
 Its last two importers are gone as of this task, so it goes now:
 
@@ -690,7 +713,7 @@ git rm frontend/src/lib/api.ts frontend/src/lib/api.test.ts
 Run: `grep -rn "lib/api\|ConfigView\|ModelsView" frontend/src`
 Expected: no output.
 
-- [ ] **Step 5: Type-check and test**
+- [ ] **Step 6: Type-check and test**
 
 Run:
 ```bash
@@ -699,7 +722,7 @@ npm --prefix frontend run test
 ```
 Expected: `svelte-check` reports 0 errors; all vitest suites pass.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add -A frontend/src
@@ -722,30 +745,13 @@ the parent could not previously tell a model switch from a slider drag."
 ### Task 5: Rewire the worker
 
 **Files:**
-- Modify: `frontend/src/lib/aiClient.ts`, `frontend/src/ai.worker.ts`
+- Modify: `frontend/src/ai.worker.ts`
 
 **Interfaces:**
-- Consumes: the `newGame` call shape from Task 4.
+- Consumes: the `newGame` message shape from Task 4 — `{ type: "newGame", modelUrl, ortBase, boardSize, maxWalls, maxSteps, humanPlayer, params }`.
 - Produces: an end-to-end working app. This is the last code task before the app can be played.
 
-- [ ] **Step 1: Update `aiClient.ts`**
-
-In `frontend/src/lib/aiClient.ts`, replace the `newGame` method:
-
-```ts
-  newGame(o: {
-    modelUrl: string; ortBase: string; boardSize: number; maxWalls: number;
-    maxSteps: number; humanPlayer: number; params: Params;
-  }) {
-    // `params` may be a Svelte $state proxy, which postMessage can't structure-
-    // clone (DataCloneError). Spread into a plain object first.
-    this.worker.postMessage({ type: "newGame", ...o, params: { ...o.params } });
-  }
-```
-
-Everything else in the file is unchanged.
-
-- [ ] **Step 2: Update `ai.worker.ts`**
+- [ ] **Step 1: Update `ai.worker.ts`**
 
 In `frontend/src/ai.worker.ts`, delete these two lines near the top:
 
@@ -783,12 +789,12 @@ In the `newGame` branch of `self.onmessage`, replace the log and load lines:
 
 Everything else in the file is unchanged.
 
-- [ ] **Step 3: Verify no hardcoded paths remain**
+- [ ] **Step 2: Verify no hardcoded paths remain**
 
 Run: `grep -rn '"/ort/\|"/models/\|`/models/' frontend/src`
 Expected: no output.
 
-- [ ] **Step 4: Build and run the gate**
+- [ ] **Step 3: Build and run the gate**
 
 Run:
 ```bash
@@ -815,10 +821,10 @@ Verify, with DevTools open:
   `/lll_alpha_quoridor/models/b5w2-mv1/model.onnx`.
 - Console: no errors.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/ai.worker.ts frontend/src/lib/aiClient.ts
+git add frontend/src/ai.worker.ts
 git commit -m "vibe: hand the worker resolved URLs
 
 The worker had /ort/ and /models/ baked in, which are exactly the paths
