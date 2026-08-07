@@ -161,7 +161,10 @@ kind of negation the Python template's lib/ rule already has."
 
 **Files:**
 - Create: `frontend/src/lib/models.ts`, `frontend/src/lib/models.test.ts`
-- Delete: `frontend/src/lib/api.ts`, `frontend/src/lib/api.test.ts`
+
+`api.ts` stays for now, unused, and is deleted in Task 4 together with its
+last two importers. Deleting it here would leave the build red across a
+commit for no benefit.
 
 **Interfaces:**
 - Consumes: the Task 1 directory layout.
@@ -408,31 +411,14 @@ the parsed JSON object rather than a module namespace.
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `npm --prefix frontend run test`
-Expected: PASS, including the pre-existing `boardGrid`, `evalRunner` and
-`smoke` suites. `api.test.ts` still passes here; it is deleted next.
+Expected: PASS — the new `models` suite plus the pre-existing `api`,
+`boardGrid`, `evalRunner` and `smoke` suites. The tree still builds: nothing
+has been removed yet.
 
-- [ ] **Step 5: Delete the fetch-based API client**
-
-```bash
-git rm frontend/src/lib/api.ts frontend/src/lib/api.test.ts
-```
-
-Run: `npm --prefix frontend run test`
-Expected: FAIL — `App.svelte` and `ConfigDrawer.svelte` still import `./api`.
-That failure is expected and is fixed in Task 4; it is why this task's commit
-comes before the tests are green again.
-
-If `vitest` does not surface the Svelte import error (it only type-checks what
-it imports), confirm the dangling references explicitly:
-
-Run: `grep -rn "lib/api\|from \"./api\"" frontend/src`
-Expected: matches in `App.svelte` and `ConfigDrawer.svelte`, to be cleared in Task 4.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add frontend/src/lib/models.ts frontend/src/lib/models.test.ts
-git add -u frontend/src/lib/
 git commit -m "vibe: read model settings from disk, not an API
 
 Board dimensions and MCTS defaults came from the play server's
@@ -509,9 +495,18 @@ wasm-pack build rust/quoridor-wasm --target web --release
 npm --prefix frontend install
 npm --prefix frontend run build
 ```
-Expected: the build fails — `App.svelte` still imports `./api`, deleted in
-Task 2. This is expected; Task 4 fixes it. Verify the config itself is valid
-by checking the error is the missing import and not a Vite config error.
+Expected: the build succeeds. Then verify the new output layout:
+
+```bash
+ls frontend/dist/models/b5w2-mv1/
+ls frontend/dist/ort/ | head -3
+grep -o 'src="[^"]*"' frontend/dist/index.html
+```
+Expected: `meta.json` and `model.onnx` in the first; `.wasm`/`.mjs` files in
+the second; a **relative** `src="./assets/..."` in the third, not `src="/assets/..."`.
+
+The app still fetches `/api/config` at this point, so it will not run yet —
+Task 4 rewires it. The build output is what this task is responsible for.
 
 - [ ] **Step 3: Commit**
 
@@ -537,6 +532,7 @@ until deploy day."
 
 **Files:**
 - Modify: `frontend/src/App.svelte`, `frontend/src/lib/ConfigDrawer.svelte`
+- Delete: `frontend/src/lib/api.ts`, `frontend/src/lib/api.test.ts`
 
 **Interfaces:**
 - Consumes: `MODELS`, `ModelEntry`, `pickDefault`, `modelUrl`, `ortBase` from Task 2.
@@ -683,7 +679,13 @@ Replace each of the three slider `oninput` handlers to call `onparams`:
 
 Leave the "You play" segmented control and the `<style>` block unchanged.
 
-- [ ] **Step 4: Verify no dangling API references**
+- [ ] **Step 4: Delete the fetch-based API client**
+
+Its last two importers are gone as of this task, so it goes now:
+
+```bash
+git rm frontend/src/lib/api.ts frontend/src/lib/api.test.ts
+```
 
 Run: `grep -rn "lib/api\|ConfigView\|ModelsView" frontend/src`
 Expected: no output.
@@ -700,7 +702,7 @@ Expected: `svelte-check` reports 0 errors; all vitest suites pass.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add frontend/src/App.svelte frontend/src/lib/ConfigDrawer.svelte
+git add -A frontend/src
 git commit -m "vibe: start the game without waiting on a server
 
 With the catalogue known at build time there is nothing to fetch, so the
@@ -1215,8 +1217,9 @@ between Task 4 Step 1 (caller) and Task 5 Step 1 (callee):
 `modelUrl`, `ortBase`, `boardSize`, `maxWalls`, `maxSteps`, `humanPlayer`,
 `params`.
 
-One deliberate friction: Task 2 ends with a red build (the Svelte files still
-import the deleted `./api`), fixed in Task 4. Splitting differently would
-mean either a giant task or a commit that adds `models.ts` while leaving
-`api.ts` dead alongside it. The plan calls this out at Task 2 Step 5 so the
-implementer does not mistake it for a mistake.
+**Every task leaves a green build.** `api.ts` is deleted in Task 4 alongside
+its last two importers rather than in Task 2 where it is superseded, which
+costs one commit of dead-but-harmless code and buys a branch where no commit
+is broken. Tasks 3 and 4 are the only pair with a visible gap — after Task 3
+the build output is correct but the app still calls `/api/config`, so it
+builds and does not run. Task 4 closes that.
