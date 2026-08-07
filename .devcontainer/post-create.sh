@@ -75,4 +75,9 @@ echo "==> python requirements"
 # the venv rather than needing a separate install.
 "$REPO_ROOT/.venv/bin/python" -m pip install -r "$REPO_ROOT/requirements.txt"
 
+echo "==> github cli"
+# Authenticating gh can't be automated here -- the login flow is interactive --
+# so surface it the same way an attach does, and don't let it fail the build.
+"$REPO_ROOT/.devcontainer/post-attach.sh" || true
+
 echo "==> done"
