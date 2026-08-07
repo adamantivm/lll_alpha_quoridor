@@ -5,6 +5,32 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+echo "==> claude plugin paths"
+# devcontainer.json bind-mounts the host's ~/.claude over /home/vscode/.claude.
+# The contents survive that, but Claude Code records absolute installPaths for
+# plugins (~/.claude/plugins/installed_plugins.json and known_marketplaces.json),
+# and those still name the *host's* home directory, which doesn't exist in here.
+# Unresolvable paths make Claude Code skip the plugin entirely and mark its cache
+# as orphaned, so installed plugins silently vanish -- no skills, no commands.
+# Same class of problem as the venv shebangs further down.
+#
+# Rewriting those files is not an option: they're the host's own, via the bind
+# mount, and container-absolute paths would break the plugins on the host. So
+# make the host's path resolve in here instead. Read the prefix back out of the
+# metadata rather than hardcoding a username.
+CLAUDE_PLUGIN_META="$HOME/.claude/plugins/installed_plugins.json"
+if [ -f "$CLAUDE_PLUGIN_META" ]; then
+  host_home="$(sed -n 's|.*"installPath": *"\(/home/[^/]*\)/.*|\1|p' \
+    "$CLAUDE_PLUGIN_META" | head -n1)"
+  if [ -n "$host_home" ] && [ "$host_home" != "$HOME" ] && [ ! -e "$host_home" ]; then
+    sudo ln -sfn "$HOME" "$host_home"
+    echo "linked $host_home -> $HOME so plugin installPaths resolve"
+  fi
+fi
+# Claude Code stamps .orphaned_at on plugin caches it couldn't resolve and sweeps
+# them later. Clear those now that the paths work, or the payload gets deleted.
+find "$HOME/.claude/plugins/cache" -maxdepth 4 -name .orphaned_at -delete 2>/dev/null || true
+
 echo "==> apt packages"
 sudo apt-get update -qq
 # pkg-config and libssl-dev: needed to build openssl-sys, pulled in via
