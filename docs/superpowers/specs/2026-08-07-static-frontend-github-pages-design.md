@@ -107,6 +107,14 @@ Copying whole directories means `meta.json` ships alongside its model. It is
 never read at runtime — the glob is the only source of truth — but it makes
 the deployed site self-describing.
 
+The root `.gitignore` needs a one-line fix. Its `models/` rule (line 48,
+for training output) matches a directory of that name at any depth, so it
+silently swallows `frontend/models/` — `git add` would report nothing and
+the site would deploy with an empty model list. A `!frontend/models/`
+negation re-includes it, verified to leave `runs/*/models/` and a top-level
+`models/` still ignored. This mirrors the `!frontend/src/lib/` negation the
+same file already carries for the Python template's `lib/` rule.
+
 The alternative considered was emitting each `.onnx` through Vite as a
 hashed asset (`import.meta.glob(..., { query: "?url" })`), which would give
 base-relative URLs and cache-busting for free. It was rejected as a second
@@ -214,8 +222,11 @@ Automated:
   errors, URL resolution under a subpath.
 - `npm --prefix frontend run check:build` — a script asserting
   `dist/models/<id>/model.onnx` and `dist/ort/*.wasm` exist, that
-  `index.html` has no root-absolute `src=`/`href=`, and that the worker chunk
-  contains no `"/ort/"` or `"/models/"` literal. This is the regression guard
+  `dist/index.html` has no root-absolute `src=`/`href=`, and that no file
+  under `frontend/src/` contains a `"/models/` or `"/ort/` literal. The last
+  check reads our own source rather than the bundle: the worker chunk has
+  all of ORT inlined into it, so scanning the built output for those strings
+  would risk false positives on ORT's own code. This is the regression guard
   for the base-path bug; PR 3 wires it into CI.
 - `PYTHONPATH=src pytest test` green after the server tests are deleted.
 
