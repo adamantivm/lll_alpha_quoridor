@@ -26,16 +26,11 @@ This plays a browser game against a small pre-trained model checked into the
 repo (`rust/fixtures/alphazero_B5W2_mv1.onnx`, a 5x5 board with 2 walls per
 player), with no training required.
 
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
 Build the WASM package the frontend depends on, then the frontend itself
 (`npm install`, not `npm ci` — the lockfile resolves `quoridor-wasm` by
 relative path against the `pkg/` directory `wasm-pack` just produced, so
-`wasm-pack` must run first):
+`wasm-pack` must run first). No Python setup is needed for this — the
+bundled fixture model already lives under `frontend/models/`:
 
 ```bash
 wasm-pack build rust/quoridor-wasm --target web --release
@@ -43,45 +38,24 @@ npm --prefix frontend install
 npm --prefix frontend run build
 ```
 
-Set up a play directory: a `config.yaml` describing the board, and a
-`models/` directory of `.onnx` files.
+Then serve the build. It is a self-contained static site — any file server
+works, and the model is bundled into it:
 
 ```bash
-mkdir -p playdir/models
-cp rust/fixtures/alphazero_B5W2_mv1.onnx playdir/models/model_1.onnx
-cat > playdir/config.yaml <<'EOF'
-run_id: play
-quoridor:
-  board_size: 5
-  max_walls: 2
-  max_steps: 50
-alphazero:
-  mcts_n: 200
-  mcts_c_puct: 1.4
-self_play:
-  num_processes: 1
-  games_per_process: 1
-training:
-  games_per_training_step: 1.0
-  learning_rate: 0.001
-  batch_size: 64
-  weight_decay: 0.0001
-  replay_buffer_size: 1000
-EOF
+npm --prefix frontend run preview
 ```
 
-Start the play server, which serves the built frontend plus the model and
-config over a small FastAPI app:
-
-```bash
-PYTHONPATH=src python src/run_play_server_web.py playdir --static-dir frontend/dist --port 8080
-```
-
-Open `http://localhost:8080` in a browser and play. (`/api/config`,
-`/api/models`, `/models/<name>.onnx`, and `/ort/<file>.wasm` are the
-underlying routes, if you want to check the server directly with `curl`.)
+Open the URL it prints and play.
 
 ## Running the tests
+
+Training and the Python/Rust test suites need a Python virtualenv:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
 ```bash
 PYTHONPATH=src pytest test
@@ -153,9 +127,9 @@ scripts/bench_rust_selfplay.sh experiments/B5W2/cucu-01.yaml rust/fixtures/alpha
 
 | Path | Contents |
 |---|---|
-| `src/` | Python trainer: game env, agents, `v2/` training pipeline, play server |
+| `src/` | Python trainer: game env, agents, `v2/` training pipeline |
 | `rust/` | `quoridor-rs` (game logic + MCTS, PyO3 bindings), `quoridor-wasm/` (browser build), `fixtures/` (bundled model) |
-| `frontend/` | Svelte SPA that plays a trained model client-side via `onnxruntime-web` |
+| `frontend/` | Static Svelte site that plays a trained model client-side via onnxruntime-web |
 | `test/` | Python test suite |
 | `experiments/` | Training configs, including the `B5W2/` proven recipe and `ci.yaml` |
 | `scripts/` | `bench_rust_selfplay.sh`, for throughput benchmarking |
