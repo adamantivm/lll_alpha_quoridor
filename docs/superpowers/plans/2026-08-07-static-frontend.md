@@ -1127,20 +1127,37 @@ trip a naive string search."
 - Consumes: everything above.
 - Produces: the branch ready for a PR.
 
-- [ ] **Step 1: Run the Python linter**
+- [ ] **Step 1: Run the Python linter over what this branch touched**
 
-The repo has `ruff.toml`. Run:
+The repo has `ruff.toml`. Scope it to the Python files this branch actually
+changed — running it over all of `src test` reformats ~76 files of
+pre-existing drift, which would bury this PR's diff and violates the
+"keep each PR small and scoped to one change" rule in AGENTS.md.
+
 ```bash
 source .venv/bin/activate
-ruff format src test
-ruff check src test --fix
+CHANGED=$(git diff --name-only main...HEAD -- '*.py')
+if [ -n "$CHANGED" ]; then
+  ruff format $CHANGED
+  ruff check $CHANGED --fix
+else
+  echo "no Python files changed on this branch; nothing to format"
+fi
 ```
+
+This branch only *deletes* Python files, so the expected result is the
+`else` branch and no formatting commit. Project-wide reformatting is its
+own PR, if anyone wants it.
 
 - [ ] **Step 2: Run the full verification sweep**
 
 ```bash
 source .venv/bin/activate
-PYTHONPATH=src pytest test
+# test/os_pz_conversion_test.py fails to import on `main` too: the venv's
+# open_spiel no longer exposes algorithms.alpha_zero.model, which
+# src/agents/alphazero_os.py imports. Pre-existing and unrelated to this
+# branch, so exclude it to get real signal. Do not "fix" it here.
+PYTHONPATH=src pytest test --ignore=test/os_pz_conversion_test.py
 npm --prefix frontend run test
 npm --prefix frontend exec svelte-check -- --threshold error
 npm --prefix frontend run build
