@@ -14,6 +14,17 @@ Whenever you commit to git, follow these commit message guidelines:
   what files were changed (the diff shows that).
 - Do not enumerate modified files in the commit message.
 
+Never commit directly to `main`. Every change, however small, goes through a feature
+branch and a pull request on this same repository:
+- Branch off the current `main` before the first commit, naming the branch
+  `vibe/<short-kebab-case-topic>` (e.g. `vibe/devcontainer-fixes`).
+- Commit to that branch following the message guidelines above.
+- Push the branch to `origin` and open a PR against `main` with `gh pr create`, using the
+  results markdown file (see the last rule below) as the PR body. Report the PR URL.
+- Keep each PR small and scoped to one change. Do not merge it yourself unless asked.
+- If pushing or `gh` is unavailable (no credentials, no network), stop after committing on
+  the branch and say exactly what is left to do -- never fall back to committing on `main`.
+
 Whenever you change rust files, before commit, make sure to run cargo fmt to format all files and then check formatting, build and run before committing.
 
 Rules specific to the rust implementation (rust folder):

@@ -51,3 +51,6 @@ game_recording.yaml
 # Local environment
 .env
 .claude/settings.local.json
+# Written by the devcontainer CLI when it resolves feature digests, so its
+# contents track whichever machine last rebuilt the container.
+.devcontainer/devcontainer-lock.json

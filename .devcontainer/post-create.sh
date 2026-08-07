@@ -11,9 +11,37 @@ sudo apt-get update -qq
 # ort -> ureq -> native-tls when building the rust crate's `binary` feature.
 sudo apt-get install -y -qq python3.12 python3.12-venv python3-pip pkg-config libssl-dev
 
+echo "==> rust toolchain"
+# devcontainer.json's rust feature is what normally puts rustup here. Install
+# it ourselves if it's absent anyway: rust is not optional in this repo (the
+# PyO3 crate under rust/, and the wasm build the frontend consumes), so a
+# container without it is not a usable environment, and wasm-pack's installer
+# fails outright without a toolchain to install into.
+# rustup keeps its shims in $CARGO_HOME/bin and communicates that by appending
+# to the shell profiles, which a non-interactive `bash post-create.sh` never
+# sources. Put the directory on PATH before looking, so a toolchain the rust
+# feature or an earlier run already installed is found instead of reinstalled.
+export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+if ! command -v rustup >/dev/null; then
+  curl -sSf https://sh.rustup.rs | sh -s -- -y --profile default
+fi
+
 echo "==> wasm-pack"
 command -v wasm-pack >/dev/null || \
   curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+
+# Fail loudly rather than hand back a half-provisioned container: everything
+# above is expected to leave all of these on PATH.
+for tool in rustup cargo rustc wasm-pack; do
+  if ! command -v "$tool" >/dev/null; then
+    echo "error: $tool is still missing after provisioning. The rust/ crate" >&2
+    echo "  and the frontend's wasm build both need it, so this container is" >&2
+    echo "  not usable as-is -- check the install output above." >&2
+    exit 1
+  fi
+done
+rustc --version
+wasm-pack --version
 
 echo "==> python venv (3.12)"
 # This workspace is bind-mounted from the host, so .venv is the host's own
@@ -46,5 +74,10 @@ echo "==> python requirements"
 # and so cannot support GPU training. maturin is listed there, so it lands in
 # the venv rather than needing a separate install.
 "$REPO_ROOT/.venv/bin/python" -m pip install -r "$REPO_ROOT/requirements.txt"
+
+echo "==> github cli"
+# Authenticating gh can't be automated here -- the login flow is interactive --
+# so surface it the same way an attach does, and don't let it fail the build.
+"$REPO_ROOT/.devcontainer/post-attach.sh" || true
 
 echo "==> done"
