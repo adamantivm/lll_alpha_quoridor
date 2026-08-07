@@ -1,6 +1,8 @@
+absl-py
 gymnasium
 maturin
 matplotlib
+networkx
 numba<=0.61
 numpy
 onnx
