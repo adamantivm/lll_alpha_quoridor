@@ -46,6 +46,9 @@ wandb/
 wandbmodels/
 mlruns/
 models/
+# The training-output models/ rule above matches a directory of that name at
+# any depth, which would swallow the frontend's bundled play models.
+!frontend/models/
 game_recording.yaml
 
 # Local environment
