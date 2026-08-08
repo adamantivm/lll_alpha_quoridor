@@ -100,8 +100,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # One deploy at a time. Not cancel-in-progress: interrupting a deploy midway
 # is worse than letting it finish and having the next run supersede it.
@@ -113,6 +111,12 @@ jobs:
   build:
     name: Build the site
     runs-on: ubuntu-latest
+    # workflow_dispatch ignores the push `paths` filter and is not pinned to a
+    # branch, so without this a manual run from a feature branch would publish
+    # that branch to production.
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -144,6 +148,12 @@ jobs:
     name: Deploy
     needs: build
     runs-on: ubuntu-latest
+    # Only this job can publish. The build job runs npm install, and therefore
+    # third-party lifecycle scripts, so it must not hold a token that can
+    # deploy to the live site.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
