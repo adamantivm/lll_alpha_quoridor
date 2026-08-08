@@ -7,6 +7,9 @@ browser) implements the game rules and search; a Svelte frontend runs trained
 models client-side (via `onnxruntime-web`) so a browser can play against a
 model with no server-side inference at all.
 
+**▶ Play it: <https://adamantivm.github.io/lll_alpha_quoridor/>** — runs
+entirely in your browser, no install required.
+
 ## Prerequisites
 
 - Python 3.12

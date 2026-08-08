@@ -1,0 +1,75 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'rust/src/**'
+      - 'rust/quoridor-wasm/**'
+      - 'rust/Cargo.toml'
+      - 'rust/Cargo.lock'
+      - '.github/actions/setup-frontend/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time. Not cancel-in-progress: interrupting a deploy midway
+# is worse than letting it finish and having the next run supersede it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    # workflow_dispatch ignores the push `paths` filter and isn't pinned to a
+    # branch by default, so without this a manual run from a feature branch
+    # would deploy that branch to production.
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up the frontend build
+        uses: ./.github/actions/setup-frontend
+
+      # Re-run the same checks CI runs on pull requests. Two PRs that each
+      # pass alone can still break main together, and a failure here leaves
+      # the previous deployment serving rather than publishing a broken site.
+      - name: Type check
+        run: npm --prefix frontend exec svelte-check -- --threshold error
+
+      - name: Unit tests
+        run: npm --prefix frontend run test
+
+      - name: Build
+        run: npm --prefix frontend run build
+
+      - name: Check build output
+        run: npm --prefix frontend run check:build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -78,6 +78,42 @@ python3 -m http.server 8080 -d /tmp/pages
 Dev mode with HMR: `npm --prefix frontend run dev`. Everything the app needs
 is static, so dev is fully functional.
 
+## Deployment
+
+`main` deploys automatically to
+<https://adamantivm.github.io/lll_alpha_quoridor/> whenever a change lands
+under `frontend/` or the Rust crates the wasm package is built from. The
+workflow runs the same checks as CI before uploading, so a failed deploy
+leaves the previous version serving rather than publishing a broken site.
+
+### Verifying a deployment
+
+Beyond loading the page and playing a move, one thing is worth checking on
+the live site specifically, because no local check can catch it:
+
+```bash
+curl -sI https://adamantivm.github.io/lll_alpha_quoridor/ort/ort-wasm-simd-threaded.asyncify.mjs \
+  | grep -i content-type
+```
+
+It must be a JavaScript type. onnxruntime loads that file with a dynamic
+`import()`, so a wrong content type fails as a module-type error rather than
+a 404 — and the local `python3 -m http.server` recipe always serves `.mjs`
+correctly, which makes it blind to this.
+
+The other thing worth checking is that the no-slash URL redirects:
+
+```bash
+curl -sI https://adamantivm.github.io/lll_alpha_quoridor | grep -iE "^HTTP|^location"
+```
+
+It must 301 to the trailing-slash URL. The build uses Vite's `base: "./"`,
+so every asset URL is resolved relative to the *document* URL — that only
+works if the document URL ends in `/`. GitHub Pages redirects the no-slash
+path, but nothing local exercises that redirect (`python3 -m http.server`
+redirects too), so this is blind in exactly the way the `.mjs` content-type
+check is.
+
 ## Models
 
 Each model is a directory under `frontend/models/`:
