@@ -2,7 +2,9 @@
   import Board from "./lib/Board.svelte";
   import ControlRail from "./lib/ControlRail.svelte";
   import ConfigDrawer from "./lib/ConfigDrawer.svelte";
+  import WebGpuBanner from "./lib/WebGpuBanner.svelte";
   import { AiClient } from "./lib/aiClient";
+  import { checkWebGpu, type WebGpuStatus } from "./lib/webgpu";
   import { MODELS, modelUrl, ortBase, pickDefault, type ModelEntry } from "./lib/models";
   import type { StateView } from "./lib/types";
 
@@ -30,6 +32,16 @@
   ai.onState = (v, t) => { view = v; thinking = t; if (!t) progress = null; };
   ai.onProgress = (done, total) => { thinking = true; progress = { done, total }; };
   ai.onError = (m) => { error = m; thinking = false; };
+
+  // The check gates nothing: the worker asks for ["webgpu", "wasm"], so
+  // onnxruntime falls back on its own. This only decides whether to warn.
+  let gpu = $state<WebGpuStatus | null>(null);
+  checkWebGpu().then(
+    (status) => { gpu = status; },
+    // Defensive: checkWebGpu resolves on every path today. A rejection here
+    // would mean a bug in the check itself, which is not worth warning about.
+    () => { gpu = { ok: true }; },
+  );
 
   // Models are known at build time, so there is no loading state to wait for.
   newGame();
@@ -59,6 +71,10 @@
 
   function act(index: number) { thinking = true; ai.move(index); }
 </script>
+
+{#if gpu && !gpu.ok}
+  <WebGpuBanner status={gpu} />
+{/if}
 
 <div class="layout">
   <div>
