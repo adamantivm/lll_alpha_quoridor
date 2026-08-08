@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEntries, joinUrl, parseMeta, pickDefault, type ModelEntry } from "./models";
+import { buildEntries, joinUrl, MODELS, parseMeta, pickDefault, type ModelEntry } from "./models";
 
 const raw = {
   label: "5×5, 2 walls (mv1)",
@@ -74,6 +74,23 @@ describe("pickDefault", () => {
   it("falls back to the last by id when several are flagged", () => {
     const entries = [entry("aaa"), entry("zzz")];
     expect(pickDefault(entries).id).toBe("zzz");
+  });
+});
+
+// MODELS is computed at module scope by buildEntries()/parseMeta() reading
+// the real frontend/models/*/meta.json files via import.meta.glob -- so
+// merely importing this module already runs schema validation against them.
+// Neither `npm run build` nor `npm run check:build` exercises that code
+// path (the browser does, at runtime, too late). This test makes that
+// validation an intentional, documented gate instead of an accidental
+// side effect of some other test happening to import "./models".
+describe("MODELS (the real committed meta.json files)", () => {
+  it("loads at least one model without throwing", () => {
+    expect(MODELS.length).toBeGreaterThan(0);
+  });
+
+  it("has a valid pickDefault() result", () => {
+    expect(() => pickDefault(MODELS)).not.toThrow();
   });
 });
 

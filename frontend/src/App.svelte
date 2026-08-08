@@ -49,9 +49,10 @@
     if (entry.id === selected.id) return;
     selected = entry;
     params = {
-      ...params,
       mctsN: entry.defaults.mcts_n,
       cPuct: entry.defaults.mcts_c_puct,
+      leafParallelism: entry.defaults.leaf_parallelism,
+      virtualLoss: entry.defaults.virtual_loss,
     };
     newGame();
   }

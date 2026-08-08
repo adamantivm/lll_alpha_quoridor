@@ -46,7 +46,8 @@ Each model is a directory under `frontend/models/`:
 ```
 frontend/models/b5w2-mv1/
   model.onnx
-  meta.json     # label, default flag, board_size, max_walls, max_steps, defaults{}
+  meta.json     # label, default flag, board_size, max_walls, max_steps,
+                # defaults{mcts_n, mcts_c_puct, leaf_parallelism, virtual_loss}
 ```
 
 The list is globbed at build time, so adding a model is "drop in a directory

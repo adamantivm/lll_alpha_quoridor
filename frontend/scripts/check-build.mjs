@@ -7,9 +7,10 @@
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const dist = new URL("../dist/", import.meta.url).pathname;
-const src = new URL("../src/", import.meta.url).pathname;
+const dist = fileURLToPath(new URL("../dist/", import.meta.url));
+const src = fileURLToPath(new URL("../src/", import.meta.url));
 const failures = [];
 
 function walk(dir) {
@@ -28,11 +29,34 @@ for (const m of html.matchAll(/(src|href)="\/[^/]/g)) {
   failures.push(`dist/index.html has a root-absolute ${m[1]}: ${m[0]}`);
 }
 
-// 2. At least one model must have been copied, with its .onnx.
+// 2. Every model directory's meta.json must be paired with a model.onnx,
+//    and vice versa -- a mismatch means a model silently 404s in production
+//    while every other check (including this file's own model count) passes.
 const distFiles = walk(dist);
-const onnx = distFiles.filter((p) => /\/models\/[^/]+\/model\.onnx$/.test(p));
-if (onnx.length === 0) {
+const metaIds = new Set(
+  distFiles
+    .map((p) => /\/models\/([^/]+)\/meta\.json$/.exec(p))
+    .filter(Boolean)
+    .map((m) => m[1]),
+);
+const onnxIds = new Set(
+  distFiles
+    .map((p) => /\/models\/([^/]+)\/model\.onnx$/.exec(p))
+    .filter(Boolean)
+    .map((m) => m[1]),
+);
+if (metaIds.size === 0 && onnxIds.size === 0) {
   failures.push("no dist/models/<id>/model.onnx -- the models copy target stopped matching");
+}
+for (const id of metaIds) {
+  if (!onnxIds.has(id)) {
+    failures.push(`dist/models/${id}/ has meta.json but no model.onnx -- check the filename`);
+  }
+}
+for (const id of onnxIds) {
+  if (!metaIds.has(id)) {
+    failures.push(`dist/models/${id}/ has model.onnx but no meta.json -- check the filename`);
+  }
 }
 
 // 3. ORT's runtime must have been copied.
@@ -57,4 +81,4 @@ if (failures.length) {
   console.error("check:build FAILED\n" + failures.map((f) => `  - ${f}`).join("\n"));
   process.exit(1);
 }
-console.log(`check:build OK (${onnx.length} model(s) bundled)`);
+console.log(`check:build OK (${onnxIds.size} model(s) bundled)`);
