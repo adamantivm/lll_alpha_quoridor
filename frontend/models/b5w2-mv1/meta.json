@@ -1,6 +1,6 @@
 {
   "label": "5×5, 2 walls (mv1)",
-  "default": true,
+  "default": false,
   "board_size": 5,
   "max_walls": 2,
   "max_steps": 50,
