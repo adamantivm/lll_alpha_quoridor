@@ -232,7 +232,7 @@ near the top rather than in a section further down.
 
 Read the file. Add to the section describing how the site is served:
 
-```markdown
+````markdown
 ## Deployment
 
 `main` deploys automatically to
@@ -255,7 +255,7 @@ It must be a JavaScript type. onnxruntime loads that file with a dynamic
 `import()`, so a wrong content type fails as a module-type error rather than
 a 404 — and the local `python3 -m http.server` recipe always serves `.mjs`
 correctly, which makes it blind to this.
-```
+````
 
 - [ ] **Step 3: Commit**
 

@@ -6,7 +6,7 @@ PR 1 made the frontend static, PR 2 added the WebGPU warning banner, and
 PR 3 added CI. The rest are listed in PR 1's write-up.
 
 Design: `docs/superpowers/specs/2026-08-07-static-frontend-github-pages-design.md`
-Plan: `docs/superpowers/plans/2026-08-07-static-frontend.md`
+Plan: `docs/superpowers/plans/2026-08-08-github-pages.md`
 
 ## Why
 
@@ -34,8 +34,11 @@ actually builds and publishes it.
   `actions/deploy-pages@v4`, gated with `needs: build` and
   `environment: github-pages`. Splitting them is what `deploy-pages`
   requires — it deploys a previously uploaded artifact rather than building
-  one itself — and it keeps the `pages`/`id-token` permissions scoped to the
-  step that actually needs them.
+  one itself — and it lets the `pages`/`id-token` permissions be granted
+  per job rather than workflow-wide: `build`, which runs `wasm-pack`,
+  `cargo` and `npm install` (third-party install scripts across the whole
+  transitive dependency tree), never holds a token that can publish to the
+  live site. Only `deploy`, which does nothing but call the Pages API, does.
 - **The build job re-runs the same checks CI runs on pull requests**
   (`svelte-check`, unit tests, `build`, `check:build`) before uploading.
   Two changes can each pass their own PR and still break `main` together
@@ -104,15 +107,19 @@ below.
 
 ```
 jobs: ['build', 'deploy']
-permissions: {'contents': 'read', 'pages': 'write', 'id-token': 'write'}
+workflow permissions: {'contents': 'read'}
+  build: permissions={'contents': 'read'} if=github.ref == 'refs/heads/main' needs=None
+  deploy: permissions={'pages': 'write', 'id-token': 'write'} if=None needs=build
 concurrency: {'group': 'pages', 'cancel-in-progress': False}
   ./.github/actions/setup-frontend exists=True
-deploy needs: build
 ```
 
-Two jobs, both required permissions present, concurrency group `pages`
-with `cancel-in-progress: False`, the composite action path resolves to a
-real `action.yml`, and `deploy` declares `needs: build`.
+Two jobs, `contents: read` at the workflow level as a floor, `pages: write`
+and `id-token: write` granted only to `deploy` (the job that never runs
+third-party install scripts), `build` gated to `main` so a manual
+`workflow_dispatch` from a feature branch can't publish it, concurrency
+group `pages` with `cancel-in-progress: False`, the composite action path
+resolves to a real `action.yml`, and `deploy` declares `needs: build`.
 
 ### Artifact path (Task 1 Step 3)
 

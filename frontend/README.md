@@ -101,6 +101,19 @@ It must be a JavaScript type. onnxruntime loads that file with a dynamic
 a 404 — and the local `python3 -m http.server` recipe always serves `.mjs`
 correctly, which makes it blind to this.
 
+The other thing worth checking is that the no-slash URL redirects:
+
+```bash
+curl -sI https://adamantivm.github.io/lll_alpha_quoridor | grep -iE "^HTTP|^location"
+```
+
+It must 301 to the trailing-slash URL. The build uses Vite's `base: "./"`,
+so every asset URL is resolved relative to the *document* URL — that only
+works if the document URL ends in `/`. GitHub Pages redirects the no-slash
+path, but nothing local exercises that redirect (`python3 -m http.server`
+redirects too), so this is blind in exactly the way the `.mjs` content-type
+check is.
+
 ## Models
 
 Each model is a directory under `frontend/models/`:
