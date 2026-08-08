@@ -1,9 +1,9 @@
 # Quoridor frontend (Svelte + Web Worker + onnxruntime-web)
 
 The browser play app. A Web Worker runs the `quoridor-wasm` MCTS and evaluates the
-net with onnxruntime-web (WebGPU, wasm-CPU fallback); the main thread renders the
-board and streams the AI's "thinking" progress. Builds to a self-contained static
-site. Design: `docs/superpowers/specs/2026-07-05-browser-wasm-play-server-design.md`.
+net with onnxruntime-web (WebGPU when available, wasm CPU otherwise); the main
+thread renders the board and streams the AI's "thinking" progress. Builds to a
+self-contained static site. Design: `docs/superpowers/specs/2026-07-05-browser-wasm-play-server-design.md`.
 
 ## Build
 
@@ -15,6 +15,28 @@ npm --prefix frontend install
 npm --prefix frontend run build       # -> frontend/dist/
 npm --prefix frontend run check:build # post-build assertions
 ```
+
+## Browser requirements
+
+WebGPU is used when available and is much faster. When it isn't, the app
+falls back to onnxruntime's wasm CPU backend and shows a banner explaining
+that the AI will think more slowly — it stays playable either way. Lowering
+*MCTS sims* in the config panel trades strength for speed on the CPU path.
+
+The host must serve `dist/ort/*.mjs` with a JavaScript MIME type: onnxruntime
+loads it with a dynamic `import()`, so a wrong content type fails as a
+module-type error rather than a 404.
+
+### Possible future improvement: multi-threaded CPU fallback
+
+The CPU fallback currently runs single-threaded, because onnxruntime needs
+`SharedArrayBuffer` to use threads and that requires cross-origin isolation
+(COOP/COEP headers), which GitHub Pages cannot send. A service worker such as
+[`coi-serviceworker`](https://github.com/gzuidhof/coi-serviceworker) can
+supply those headers on a static host and restore multi-threading, at the
+cost of an extra service worker and a first-load reload. Deferred until
+there is a measurement showing the single-threaded search is actually too
+slow.
 
 ## Run (play a game)
 
@@ -60,8 +82,8 @@ different board size starts a new game on that board.
 Browser
   main thread (Svelte)  ── postMessage ─▶  Web Worker (ai.worker.ts)
     board, progress bar,  ◀─ state/progress ─   quoridor-wasm  (game + MCTS)
-    undo, config drawer                          onnxruntime-web (WebGPU) ── eval_batch
-Static files:  index.html · assets/* · models/<id>/model.onnx · ort/*.wasm
+    undo, config drawer                          onnxruntime-web (WebGPU/wasm) ── eval_batch
+Static files:  index.html · assets/* · models/<id>/model.onnx · ort/*.{wasm,mjs}
 ```
 
 ## Tests
@@ -69,5 +91,5 @@ Static files:  index.html · assets/* · models/<id>/model.onnx · ort/*.wasm
 npm --prefix frontend run test   # vitest: board model, eval marshalling, model list
 ```
 Unit tests cover the pure logic (board derivation, eval tensor marshalling, model
-list loading). End-to-end gameplay (WebGPU inference, progress bar, clicking) is a
-manual browser check — actually playing needs a real browser.
+list loading). End-to-end gameplay (onnxruntime inference, progress bar, clicking) is
+a manual browser check — actually playing needs a real browser.
