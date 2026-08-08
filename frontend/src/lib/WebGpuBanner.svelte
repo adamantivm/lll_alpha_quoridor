@@ -9,7 +9,7 @@
   way to find out later why the AI is slow.
 -->
 <div class="banner" role="status">
-  <strong>WebGPU isn't available in this browser.</strong>
+  <strong>WebGPU isn't usable in this browser.</strong>
   The AI is running on the CPU instead, so it will think more slowly.
   {#if status.reason === "no-adapter"}
     Your browser supports WebGPU but offered no usable graphics adapter —
@@ -18,6 +18,9 @@
     Starting WebGPU failed.
   {/if}
   Lower <em>MCTS sims</em> in the panel if moves take too long.
+  {#if status.detail}
+    <small class="detail">{status.detail}</small>
+  {/if}
 </div>
 
 <style>
@@ -33,4 +36,10 @@
     font-size: 0.9rem;
   }
   .banner strong { color: #7a5c0f; }
+  .detail {
+    display: block;
+    margin-top: 4px;
+    opacity: 0.8;
+    overflow-wrap: anywhere;
+  }
 </style>

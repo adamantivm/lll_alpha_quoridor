@@ -82,6 +82,26 @@ Down from the four wasm builds and every `.mjs` variant PR 1 shipped
 (93 MB of onnxruntime alone, ~114 MB total in `dist/`, all uploaded on every
 Pages deploy).
 
+**That 48 MB is not what the app asks for.** `dist/ort/` — the files
+actually fetched at runtime — is only ~24.3 MB, and `frontend/models/` is
+416 KB. The other ~24 MB is
+`dist/assets/ort-wasm-simd-threaded.asyncify-<hash>.wasm`, a second copy of
+the same file that Vite emits on its own: onnxruntime's bundle contains a
+statically-analyzable `new URL(...)` reference to it, and Vite treats that
+as a build input regardless of whether anything at runtime requests the
+hashed URL it produces. Nothing does — `ai.worker.ts` sets `ort.env.wasm.
+wasmPaths` before every `InferenceSession.create()` call, which redirects
+ORT's fetch to `dist/ort/` instead, and the branch that would use the
+hashed asset (`env.wasm.proxy`, defaulting to `false`) is not taken either.
+It is dead weight, twice over, by static reasoning alone.
+
+It is being kept for now rather than stripped. Deleting an emitted asset on
+the strength of static analysis, before anyone has run this branch in a
+real browser, is exactly the mistake the `*jsep*` glob above made — confident
+reasoning about which files matter, unverified against an actual load.
+Removing it is a follow-up, to attempt only after the open browser gate below
+confirms the wasm-CPU path actually works end to end.
+
 ## The single-threaded caveat
 
 The wasm-CPU fallback runs single-threaded: onnxruntime needs

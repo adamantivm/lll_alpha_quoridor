@@ -13,11 +13,15 @@ export default defineConfig({
       targets: [
         // ORT constructs these filenames internally, so Vite cannot resolve
         // them for us; they are copied verbatim and located via ortBase().
-        // The WebGPU entry point (onnxruntime-web/webgpu) requests the
-        // asyncify build beneath wasmPaths; with the wasm-CPU fallback gone,
+        // The worker's entry point, onnxruntime-web/webgpu, requests
+        // ort-wasm-simd-threaded.asyncify.{wasm,mjs} beneath `wasmPaths`.
+        // The entry point and `wasmPaths` decide the filenames -- the
+        // executionProviders list does NOT participate in that choice -- so
+        // this glob is correct whether or not the wasm-CPU fallback is
+        // enabled. Do not widen it just because `executionProviders` grows;
         // the jsep/jspi/base wasm builds and the webgl/node/all .mjs
-        // variants are unreachable. Shipping all of them cost 93MB,
-        // uploaded on every deploy.
+        // variants are unreachable regardless. Shipping all of them cost
+        // 93MB, uploaded on every deploy.
         { src: "node_modules/onnxruntime-web/dist/*asyncify*", dest: "ort" },
         // Whole model directories, so meta.json ships next to its model and
         // the deployed site is self-describing. Only the .onnx is fetched at

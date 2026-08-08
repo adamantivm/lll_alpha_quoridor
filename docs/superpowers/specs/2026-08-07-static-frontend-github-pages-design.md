@@ -26,8 +26,9 @@ Five pull requests, each with its own verification gate:
 
 1. **Statification** — model directories, glob-based manifest, relative base
    paths, server deleted.
-2. **WebGPU required** — detect it up front and refuse cleanly instead of
-   falling back to wasm-CPU.
+2. **Warn when WebGPU is unavailable** — detect it up front and show a
+   persistent banner if it isn't usable; the app keeps running on the
+   wasm-CPU fallback either way.
 3. **Frontend CI** — `wasm-pack build` + `npm test` + `npm run build` on PRs.
 4. **GitHub Pages** — enable Pages, add the deploy workflow.
 5. **Add-a-model docs** — `CONTRIBUTING.md`, with a better model as the
@@ -332,8 +333,9 @@ model. A wrong doc fails the gate.
 ## Out of scope
 
 - **`coi-serviceworker`.** A service worker can forge COOP/COEP on a static
-  host and restore multi-threaded wasm. Not needed while WebGPU is required,
-  and it adds a stale-asset failure mode on redeploy.
+  host and restore multi-threaded wasm. Deferred until there is a real
+  measurement showing the single-threaded wasm-CPU fallback is actually too
+  slow to play against; it also adds a stale-asset failure mode on redeploy.
 - **Custom domain.** The relative base means adding one later changes
   nothing.
 - **Migrating existing `runs/` directories.** The old play server read a run

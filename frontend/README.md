@@ -27,6 +27,23 @@ The host must serve `dist/ort/*.mjs` with a JavaScript MIME type: onnxruntime
 loads it with a dynamic `import()`, so a wrong content type fails as a
 module-type error rather than a 404.
 
+### `dist/` is 48 MB, but the app only fetches about half of that
+
+`dist/ort/` (what the app actually requests) is ~24.3 MB and
+`frontend/models/` is 416 KB. The remaining ~24 MB is
+`dist/assets/ort-wasm-simd-threaded.asyncify-<hash>.wasm` — a second copy of
+the same wasm binary that Vite emits on its own, because onnxruntime's
+bundle contains a statically-analyzable `new URL(...)` reference to it.
+Nothing fetches that hashed copy at runtime: `ai.worker.ts` sets
+`ort.env.wasm.wasmPaths` before creating a session, which points ORT at
+`dist/ort/` instead, and the code path that would use the hashed asset
+(`env.wasm.proxy`, which defaults to `false`) isn't taken either. It is kept
+for now rather than deleted — removing an emitted asset on static analysis
+alone, before this branch has been run in a real browser, is how a previous
+draft shipped a build that 404'd in production. Trimming it is a follow-up,
+to attempt once the wasm-CPU fallback has been confirmed working end to end
+in an actual browser.
+
 ### Possible future improvement: multi-threaded CPU fallback
 
 The CPU fallback currently runs single-threaded, because onnxruntime needs

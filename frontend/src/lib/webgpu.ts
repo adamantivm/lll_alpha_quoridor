@@ -1,8 +1,8 @@
 /**
- * Whether this browser can run our inference. The app requires WebGPU: the
- * wasm-CPU fallback cannot use SharedArrayBuffer on GitHub Pages (which
- * cannot send COOP/COEP headers), so it would run single-threaded and search
- * far too slowly to be worth offering silently.
+ * Whether this browser can actually run WebGPU inference. Advisory only: the
+ * worker's `executionProviders` is `["webgpu", "wasm"]`, and onnxruntime
+ * falls back to its wasm-CPU backend on its own without being asked, so this
+ * result decides only whether to warn the user that the AI will be slower.
  */
 
 export type WebGpuStatus =
