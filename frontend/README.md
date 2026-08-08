@@ -110,3 +110,8 @@ npm --prefix frontend run test   # vitest: board model, eval marshalling, model 
 Unit tests cover the pure logic (board derivation, eval tensor marshalling, model
 list loading). End-to-end gameplay (onnxruntime inference, progress bar, clicking) is
 a manual browser check — actually playing needs a real browser.
+
+These same checks — `svelte-check`, the unit tests, `npm run build` and
+`npm run check:build` — run in CI on every pull request that touches
+`frontend/` or the Rust crates the wasm package is built from, so a green PR
+means the site can actually be built.

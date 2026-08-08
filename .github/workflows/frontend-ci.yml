@@ -1,0 +1,52 @@
+name: Frontend CI
+
+on:
+  push:
+    paths:
+      - 'frontend/**'
+      - 'rust/src/**'
+      - 'rust/quoridor-wasm/**'
+      - 'rust/Cargo.toml'
+      - 'rust/Cargo.lock'
+      - '.github/actions/setup-frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'rust/src/**'
+      - 'rust/quoridor-wasm/**'
+      - 'rust/Cargo.toml'
+      - 'rust/Cargo.lock'
+      - '.github/actions/setup-frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Test and build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up the frontend build
+        uses: ./.github/actions/setup-frontend
+
+      - name: Type check
+        run: npm --prefix frontend exec svelte-check -- --threshold error
+
+      - name: Unit tests
+        run: npm --prefix frontend run test
+
+      - name: Build
+        run: npm --prefix frontend run build
+
+      # Guards the regressions that build cleanly and only fail once deployed
+      # under a path prefix: root-absolute asset URLs, a copy target that
+      # silently stops matching, and a model directory missing its .onnx.
+      - name: Check build output
+        run: npm --prefix frontend run check:build
