@@ -15,7 +15,7 @@ each has a static answer:
 | `GET /api/config` — board dims + MCTS defaults from `config.yaml` | `meta.json` in each model's directory |
 | `GET /api/models` — the list and its default | `import.meta.glob` over those `meta.json` files at build time |
 | `GET /models/*.onnx` | `.onnx` copied into `dist/models/` by `vite-plugin-static-copy` |
-| COOP/COEP headers | Dropped; WebGPU becomes a requirement |
+| COOP/COEP headers | Dropped; the wasm-CPU fallback runs single-threaded, and PR 2 warns about it |
 
 Removing the server removes the only reason a player needs a Python
 environment, and makes the app deployable to any static host.
@@ -26,8 +26,9 @@ Five pull requests, each with its own verification gate:
 
 1. **Statification** — model directories, glob-based manifest, relative base
    paths, server deleted.
-2. **WebGPU required** — detect it up front and refuse cleanly instead of
-   falling back to wasm-CPU.
+2. **Warn when WebGPU is unavailable** — detect it up front and show a
+   persistent banner if it isn't usable; the app keeps running on the
+   wasm-CPU fallback either way.
 3. **Frontend CI** — `wasm-pack build` + `npm test` + `npm run build` on PRs.
 4. **GitHub Pages** — enable Pages, add the deploy workflow.
 5. **Add-a-model docs** — `CONTRIBUTING.md`, with a better model as the
@@ -169,7 +170,8 @@ shows `meta.label` instead of a raw `.onnx` filename.
 cannot set response headers, so cross-origin isolation is unreachable in
 production; keeping it in dev would make dev diverge from prod. In PR 1 this
 means the wasm-CPU fallback runs single-threaded locally, which is the
-honest preview of what Pages would give. PR 2 removes that path entirely.
+honest preview of what Pages would give. PR 2 keeps that path and adds a
+banner explaining it, rather than removing it as originally planned.
 
 ### Deletions
 
@@ -230,25 +232,51 @@ Automated:
   for the base-path bug; PR 3 wires it into CI.
 - `PYTHONPATH=src pytest test` green after the server tests are deleted.
 
-## PR 2 — WebGPU required
+## PR 2 — Warn when WebGPU is unavailable
+
+> **Revised.** This section originally made WebGPU mandatory: no adapter, no
+> app. That was wrong, and testing disproved it — broken WebGPU turns out to
+> be common enough that the repo owner's own Chrome, on a machine with a
+> working GPU, cannot run it. A requirement that locks the maintainer out of
+> their own project is not a requirement, it is a bug. The original text is
+> preserved in git history.
 
 A `lib/webgpu.ts` check that goes further than `navigator.gpu` being present:
 it `await`s `requestAdapter()` and treats a null adapter as unsupported,
 since the API can exist while the GPU is blocklisted or unavailable in a
-headless or VM context. On failure the app renders an explanatory panel
-instead of the board and never starts the worker. The worker's
-`executionProviders` drops to `["webgpu"]`.
+headless or VM context. The check is bounded by a timeout, because
+`requestAdapter()` can hang on a wedged GPU process.
 
-`dist/ort/` stays. ORT's core is itself WebAssembly — WebGPU is only the
-compute backend — so those files are still required and the bundle does not
-shrink.
+**The check gates nothing.** The worker keeps
+`executionProviders: ["webgpu", "wasm"]`, so onnxruntime falls back on its
+own without being asked. The check's only job is to decide whether to show a
+persistent banner above the app saying WebGPU is unavailable and the AI will
+think more slowly until it is fixed. The app starts immediately either way,
+which preserves PR 1's property of having no startup loading state.
 
-A CPU fallback may return later as an explicit opt-in the user confirms,
-rather than a silent degradation to a single-threaded search.
+This decoupling is what keeps the design small: no startup gate, no
+"checking…" state, no lazily-constructed worker, and no path where a
+detection bug can stop someone playing.
 
-**Gate:** unit test the check against a stubbed `navigator.gpu`; manually
-verify the refusal path in Firefox with `dom.webgpu.enabled=false` in
-`about:config`.
+`dist/ort/` shrinks anyway, for an unrelated reason. The worker imports
+`onnxruntime-web/webgpu`, which requests
+`ort-wasm-simd-threaded.asyncify.{wasm,mjs}` beneath `wasmPaths` — and which
+files it requests is decided by the entry point, **not** by the
+`executionProviders` list. So shipping only those two is correct whether or
+not the wasm fallback is enabled. Verified empirically by building both ways
+and diffing the filename literals in the emitted worker chunk.
+
+**Deliberately not done: restoring cross-origin isolation.** Without
+COOP/COEP there is no `SharedArrayBuffer`, so the fallback runs
+single-threaded. `coi-serviceworker` can forge those headers on a static
+host and bring back multi-threading. It is deferred until there is a real
+measurement showing the single-threaded search is too slow, rather than
+built on the assumption that it is. Recorded in `frontend/README.md` as a
+future improvement.
+
+**Gate:** unit test the check against a stubbed `navigator.gpu`; confirm in
+a browser without working WebGPU that the banner appears *and the game is
+still playable*.
 
 ## PR 3 — Frontend CI
 
@@ -306,8 +334,9 @@ model. A wrong doc fails the gate.
 ## Out of scope
 
 - **`coi-serviceworker`.** A service worker can forge COOP/COEP on a static
-  host and restore multi-threaded wasm. Not needed while WebGPU is required,
-  and it adds a stale-asset failure mode on redeploy.
+  host and restore multi-threaded wasm. Deferred until there is a real
+  measurement showing the single-threaded wasm-CPU fallback is actually too
+  slow to play against; it also adds a stale-asset failure mode on redeploy.
 - **Custom domain.** The relative base means adding one later changes
   nothing.
 - **Migrating existing `runs/` directories.** The old play server read a run

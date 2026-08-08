@@ -30,6 +30,10 @@ async function loadSession(modelUrl: string, ortBase: string) {
   // Release the old session first so repeated New Game / model switches don't
   // leak GPU/WASM memory (ORT has no FinalizationRegistry backstop).
   if (session) { await session.release(); session = null; }
+  // WebGPU first, wasm-CPU as the fallback. Without cross-origin isolation
+  // (GitHub Pages cannot send COOP/COEP) the fallback is single-threaded and
+  // noticeably slower, which is what the banner in the UI warns about -- but
+  // slower beats refusing to run on a browser whose WebGPU is broken.
   session = await ort.InferenceSession.create(modelUrl, {
     executionProviders: ["webgpu", "wasm"],
   });

@@ -59,9 +59,40 @@ for (const id of onnxIds) {
   }
 }
 
-// 3. ORT's runtime must have been copied.
-if (!distFiles.some((p) => /\/ort\/.*\.wasm$/.test(p))) {
-  failures.push("no dist/ort/*.wasm -- the onnxruntime-web copy target stopped matching");
+// 3. Every ORT runtime file the built worker actually asks for must be in
+//    dist/ort/. Derived from the emitted bundle rather than hardcoded: which
+//    variant onnxruntime's WebGPU entry point requests (asyncify today) has
+//    changed between releases, and a guard that hardcodes the name can only
+//    confirm the guess, not catch it being wrong.
+const assetNames = new Set(
+  distFiles.filter((p) => p.includes("/assets/")).map((p) => p.split("/").pop()),
+);
+const requested = new Set();
+for (const chunk of distFiles.filter((p) => /\/assets\/.*\.js$/.test(p))) {
+  for (const m of readFileSync(chunk, "utf8").matchAll(/"(ort-wasm[\w.-]*\.(?:wasm|mjs))"/g)) {
+    // Names Vite emitted as hashed assets are resolved by URL, not fetched
+    // from wasmPaths, so they are not our responsibility to copy.
+    if (!assetNames.has(m[1])) requested.add(m[1]);
+  }
+}
+if (requested.size === 0) {
+  failures.push(
+    "could not determine which ORT runtime files the worker requests -- the " +
+      "detection in this script needs updating for this onnxruntime version",
+  );
+}
+const shipped = new Set(
+  distFiles.filter((p) => p.includes("/ort/")).map((p) => p.split("/").pop()),
+);
+for (const name of requested) {
+  if (!shipped.has(name)) {
+    failures.push(`dist/ort/${name} is missing -- the worker requests it at runtime`);
+  }
+}
+for (const name of shipped) {
+  if (!requested.has(name)) {
+    failures.push(`dist/ort/${name} is shipped but never requested -- narrow the copy glob`);
+  }
 }
 
 // 4. Our own source must not hardcode site-root paths. This reads src/ rather
