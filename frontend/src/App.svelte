@@ -1,21 +1,25 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import Board from "./lib/Board.svelte";
   import ControlRail from "./lib/ControlRail.svelte";
   import ConfigDrawer from "./lib/ConfigDrawer.svelte";
   import { AiClient } from "./lib/aiClient";
-  import { fetchConfig, fetchModels, type ConfigView, type ModelsView } from "./lib/api";
+  import { MODELS, modelUrl, ortBase, pickDefault, type ModelEntry } from "./lib/models";
   import type { StateView } from "./lib/types";
 
-  let config = $state<ConfigView | null>(null);
-  let models = $state<ModelsView | null>(null);
+  const initial = pickDefault(MODELS);
+
+  let selected = $state<ModelEntry>(initial);
   let view = $state<StateView | null>(null);
   let thinking = $state(false);
   let progress = $state<{ done: number; total: number } | null>(null);
   let error = $state<string | null>(null);
-  let model = $state("");
   let humanPlayer = $state(0);
-  let params = $state({ mctsN: 200, cPuct: 1.4, leafParallelism: 8, virtualLoss: 1 });
+  let params = $state({
+    mctsN: initial.defaults.mcts_n,
+    cPuct: initial.defaults.mcts_c_puct,
+    leafParallelism: initial.defaults.leaf_parallelism,
+    virtualLoss: initial.defaults.virtual_loss,
+  });
 
   // True only when the human may act: their turn, game live, AI not working.
   const awaitingHuman = $derived(
@@ -27,26 +31,32 @@
   ai.onProgress = (done, total) => { thinking = true; progress = { done, total }; };
   ai.onError = (m) => { error = m; thinking = false; };
 
-  onMount(async () => {
-    try {
-      config = await fetchConfig();
-      models = await fetchModels();
-      model = models.default ?? models.models[0] ?? "";
-      params = { ...params, mctsN: config.defaults.mcts_n, cPuct: config.defaults.mcts_c_puct };
-      newGame();
-    } catch (e) {
-      error = `Failed to load config/models: ${e}`;
-    }
-  });
+  // Models are known at build time, so there is no loading state to wait for.
+  newGame();
 
   function newGame() {
-    if (!config || !model) return;
     error = null; thinking = true; progress = null;
     ai.newGame({
-      model, boardSize: config.board_size, maxWalls: config.max_walls,
-      maxSteps: config.max_steps, humanPlayer, params,
+      modelUrl: modelUrl(selected), ortBase: ortBase(),
+      boardSize: selected.board_size, maxWalls: selected.max_walls,
+      maxSteps: selected.max_steps, humanPlayer, params,
     });
   }
+
+  // Switching models can change the board, so it has to restart the game
+  // rather than swap the network under a position that may not be legal.
+  function selectModel(entry: ModelEntry) {
+    if (entry.id === selected.id) return;
+    selected = entry;
+    params = {
+      mctsN: entry.defaults.mcts_n,
+      cPuct: entry.defaults.mcts_c_puct,
+      leafParallelism: entry.defaults.leaf_parallelism,
+      virtualLoss: entry.defaults.virtual_loss,
+    };
+    newGame();
+  }
+
   function act(index: number) { thinking = true; ai.move(index); }
 </script>
 
@@ -69,8 +79,9 @@
     {/if}
   </div>
   <ControlRail {view} {thinking} {progress} onundo={() => ai.undo(2)} onnewgame={newGame} />
-  <ConfigDrawer {config} {models} {model} {params} {humanPlayer}
-    onchange={(o) => { model = o.model; params = o.params; ai.setParams(o.params); }}
+  <ConfigDrawer models={MODELS} {selected} {params} {humanPlayer}
+    onmodel={selectModel}
+    onparams={(p) => { params = p; ai.setParams(p); }}
     onhumanplayer={(p) => { humanPlayer = p; }} />
 </div>
 

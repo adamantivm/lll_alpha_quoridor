@@ -19,8 +19,8 @@ export class AiClient {
   }
 
   newGame(o: {
-    model: string; boardSize: number; maxWalls: number; maxSteps: number;
-    humanPlayer: number; params: Params;
+    modelUrl: string; ortBase: string; boardSize: number; maxWalls: number;
+    maxSteps: number; humanPlayer: number; params: Params;
   }) {
     // `params` may be a Svelte $state proxy, which postMessage can't structure-
     // clone (DataCloneError). Spread into a plain object first.

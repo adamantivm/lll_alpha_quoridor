@@ -4,9 +4,6 @@ import * as ort from "onnxruntime-web/webgpu";
 import { runEval, type OrtLikeSession } from "./lib/evalRunner";
 import type { StateView } from "./lib/types";
 
-// Serve ORT's wasm/mjs from our own origin (copied there by vite-plugin-static-copy).
-ort.env.wasm.wasmPaths = "/ort/";
-
 type Params = {
   mctsN: number; cPuct: number; leafParallelism: number; virtualLoss: number;
 };
@@ -25,11 +22,15 @@ function ensureWasm(): Promise<void> {
   return wasmReady;
 }
 
-async function loadSession(model: string) {
+async function loadSession(modelUrl: string, ortBase: string) {
+  // Both URLs are resolved by the main thread against the site's base (see
+  // siteBase() in lib/models.ts), so the worker never does path arithmetic --
+  // it has no reliable view of where the site is mounted.
+  ort.env.wasm.wasmPaths = ortBase;
   // Release the old session first so repeated New Game / model switches don't
   // leak GPU/WASM memory (ORT has no FinalizationRegistry backstop).
   if (session) { await session.release(); session = null; }
-  session = await ort.InferenceSession.create(`/models/${model}`, {
+  session = await ort.InferenceSession.create(modelUrl, {
     executionProviders: ["webgpu", "wasm"],
   });
   console.log("[ai] session ready:", session.inputNames, "->", session.outputNames);
@@ -69,10 +70,10 @@ self.onmessage = async (e: MessageEvent) => {
   busy = true;
   try {
     if (m.type === "newGame") {
-      console.log("[ai] newGame model=", m.model);
+      console.log("[ai] newGame model=", m.modelUrl);
       await ensureWasm();
       params = m.params;
-      await loadSession(m.model);
+      await loadSession(m.modelUrl, m.ortBase);
       game?.free();
       game = new Game(m.boardSize, m.maxWalls, m.maxSteps, m.humanPlayer);
       let view = game.stateView() as StateView;
