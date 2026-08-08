@@ -15,7 +15,7 @@ each has a static answer:
 | `GET /api/config` — board dims + MCTS defaults from `config.yaml` | `meta.json` in each model's directory |
 | `GET /api/models` — the list and its default | `import.meta.glob` over those `meta.json` files at build time |
 | `GET /models/*.onnx` | `.onnx` copied into `dist/models/` by `vite-plugin-static-copy` |
-| COOP/COEP headers | Dropped; WebGPU becomes a requirement |
+| COOP/COEP headers | Dropped; the wasm-CPU fallback runs single-threaded, and PR 2 warns about it |
 
 Removing the server removes the only reason a player needs a Python
 environment, and makes the app deployable to any static host.
@@ -170,7 +170,8 @@ shows `meta.label` instead of a raw `.onnx` filename.
 cannot set response headers, so cross-origin isolation is unreachable in
 production; keeping it in dev would make dev diverge from prod. In PR 1 this
 means the wasm-CPU fallback runs single-threaded locally, which is the
-honest preview of what Pages would give. PR 2 removes that path entirely.
+honest preview of what Pages would give. PR 2 keeps that path and adds a
+banner explaining it, rather than removing it as originally planned.
 
 ### Deletions
 
