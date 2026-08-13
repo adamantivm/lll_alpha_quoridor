@@ -6,6 +6,7 @@
   import { AiClient } from "./lib/aiClient";
   import { checkWebGpu, type WebGpuStatus } from "./lib/webgpu";
   import { MODELS, modelUrl, ortBase, pickDefault, type ModelEntry } from "./lib/models";
+  import { createAppReporter } from "./lib/statsClient";
   import type { StateView } from "./lib/types";
 
   const initial = pickDefault(MODELS);
@@ -28,8 +29,16 @@
     !!view && view.winner == null && view.current_player === view.human_player && !thinking,
   );
 
+  // Anonymous game records, for win rates and replays. Never affects play:
+  // every write is fire-and-forget, and it does nothing at all unless the
+  // build was given a stats endpoint. See lib/stats.ts and stats-worker/.
+  const stats = createAppReporter(() => gpu?.ok ?? null);
+
   const ai = new AiClient();
-  ai.onState = (v, t) => { view = v; thinking = t; if (!t) progress = null; };
+  ai.onState = (v, t) => {
+    view = v; thinking = t; if (!t) progress = null;
+    stats.recordView(v);
+  };
   ai.onProgress = (done, total) => { thinking = true; progress = { done, total }; };
   ai.onError = (m) => { error = m; thinking = false; };
 
@@ -48,6 +57,16 @@
 
   function newGame() {
     error = null; thinking = true; progress = null;
+    // Starting a new game is how a player walks away from the current one --
+    // usually once the result is obvious, which is worth knowing.
+    stats.abandonGame();
+    stats.startGame({
+      modelLabel: selected.label, modelId: selected.id,
+      boardSize: selected.board_size, maxWalls: selected.max_walls,
+      maxSteps: selected.max_steps, humanPlayer,
+      mctsN: params.mctsN, cPuct: params.cPuct,
+      leafParallelism: params.leafParallelism, virtualLoss: params.virtualLoss,
+    });
     ai.newGame({
       modelUrl: modelUrl(selected), ortBase: ortBase(),
       boardSize: selected.board_size, maxWalls: selected.max_walls,

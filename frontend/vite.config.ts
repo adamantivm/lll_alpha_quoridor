@@ -7,6 +7,9 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 // resolution funnels through siteBase() in src/lib/models.ts.
 export default defineConfig({
   base: "./",
+  // Which build a recorded game came from. GITHUB_SHA is set by the Pages
+  // workflow; local builds report "dev" so their games are easy to exclude.
+  define: { __APP_VERSION__: JSON.stringify(process.env.GITHUB_SHA ?? "dev") },
   plugins: [
     svelte(),
     viteStaticCopy({

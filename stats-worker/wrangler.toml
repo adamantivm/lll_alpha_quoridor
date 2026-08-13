@@ -5,7 +5,8 @@ compatibility_date = "2026-08-01"
 # Origins allowed to POST game records. The play site plus a local dev server;
 # anything else gets no CORS headers and a 403.
 [vars]
-ALLOWED_ORIGINS = "https://adamantivm.github.io,http://localhost:5173,http://127.0.0.1:5173"
+# 4173 is `npm --prefix frontend run preview`, the local flow the repo documents.
+ALLOWED_ORIGINS = "https://adamantivm.github.io,http://localhost:5173,http://localhost:4173,http://127.0.0.1:4173"
 
 [[d1_databases]]
 binding = "DB"

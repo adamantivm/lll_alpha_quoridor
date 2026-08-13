@@ -48,8 +48,15 @@ jobs:
       - name: Unit tests
         run: npm --prefix frontend run test
 
+      # The stats worker's public endpoint (see stats-worker/README.md). Only
+      # the deployed site reports games: CI builds and local dev leave this
+      # unset, which disables reporting entirely. Not a secret -- the URL is
+      # visible in the bundle, and the worker only accepts writes from this
+      # site's origin.
       - name: Build
         run: npm --prefix frontend run build
+        env:
+          VITE_STATS_ENDPOINT: ${{ vars.STATS_ENDPOINT }}
 
       - name: Check build output
         run: npm --prefix frontend run check:build
