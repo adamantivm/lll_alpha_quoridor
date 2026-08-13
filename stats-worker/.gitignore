@@ -1,0 +1,5 @@
+node_modules
+# wrangler's local D1 volume and build cache
+.wrangler
+# local secrets/overrides for `wrangler dev`
+.dev.vars

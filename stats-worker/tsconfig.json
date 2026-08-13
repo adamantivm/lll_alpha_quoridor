@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types"],
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "skipLibCheck": true
+  },
+  // Tests are excluded on purpose: they run on Node and use node: builtins,
+  // whose globals clash with @cloudflare/workers-types. Vitest type-errors on
+  // them at run time; this check covers the code that ships to the edge.
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}
