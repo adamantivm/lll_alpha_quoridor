@@ -56,7 +56,7 @@ offending directory named if you get this wrong.
 
 | Field | Meaning |
 |---|---|
-| `label` | Shown in the model picker |
+| `label` | Shown in the model picker, and how played games are attributed to a model in the stats (see [stats-worker/](stats-worker/)) — so bump the version in it whenever the weights change, or old and new games become indistinguishable |
 | `default` | Selected on load. Exactly one model should have `true` — flip the previous default to `false` in the same commit |
 | `board_size`, `max_walls`, `max_steps` | The board this model was trained for |
 | `defaults` | Starting MCTS settings; the config panel lets a player change them |

@@ -10,6 +10,13 @@ model with no server-side inference at all.
 **▶ Play it: <https://adamantivm.github.io/lll_alpha_quoridor/>** — runs
 entirely in your browser, no install required.
 
+Games played on that site are recorded — the moves, which model and settings
+were used, and the requesting IP and browser — so we can see how the models do
+against people and replay interesting games. There is no account, and the
+player's name is recorded as `unknown` until a later change asks for one. See
+[stats-worker/](stats-worker/) for the schema and the queries. Running the site
+locally records nothing.
+
 ## Prerequisites
 
 - Python 3.12
@@ -133,6 +140,7 @@ scripts/bench_rust_selfplay.sh experiments/B5W2/cucu-01.yaml rust/fixtures/alpha
 | `src/` | Python trainer: game env, agents, `v2/` training pipeline |
 | `rust/` | `quoridor-rs` (game logic + MCTS, PyO3 bindings), `quoridor-wasm/` (browser build), `fixtures/` (bundled model) |
 | `frontend/` | Static Svelte site that plays a trained model client-side via onnxruntime-web |
+| `stats-worker/` | Cloudflare Worker + D1 schema recording games played on the site |
 | `test/` | Python test suite |
 | `experiments/` | Training configs, including the `B5W2/` proven recipe and `ci.yaml` |
 | `scripts/` | `bench_rust_selfplay.sh`, for throughput benchmarking |

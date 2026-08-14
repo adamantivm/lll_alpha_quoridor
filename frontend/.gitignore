@@ -1,2 +1,5 @@
 node_modules
 dist
+# Local overrides, e.g. VITE_STATS_ENDPOINT pointing at a local stats worker
+.env.local
+.env.*.local

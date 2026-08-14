@@ -1,0 +1,47 @@
+name: Stats worker CI
+
+on:
+  push:
+    paths:
+      - 'stats-worker/**'
+      - '.github/workflows/stats-worker-ci.yml'
+  pull_request:
+    paths:
+      - 'stats-worker/**'
+      - '.github/workflows/stats-worker-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Test and type check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Node 22+, not the 20 the frontend build uses: sql.test.ts exercises the
+      # upsert against a real SQLite through node:sqlite, and skips itself on
+      # older runtimes -- which would quietly drop the only test of the
+      # ordering guard that keeps a stale write from clobbering a finished game.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: stats-worker/package-lock.json
+
+      - name: Install dependencies
+        run: npm --prefix stats-worker ci
+
+      - name: Type check
+        run: npm --prefix stats-worker run typecheck
+
+      - name: Unit tests
+        run: npm --prefix stats-worker run test
+
+      # Deployment stays manual (`npx wrangler deploy`): it needs a Cloudflare
+      # API token, and the worker changes far less often than the site.
