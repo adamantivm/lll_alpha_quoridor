@@ -15,6 +15,13 @@ import type { StateView } from "./types";
 
 export const STATS_SCHEMA_VERSION = 1;
 
+/**
+ * What a player is called until something asks them. Nothing does yet -- the UI
+ * for choosing a nick is a separate change, and this is the value it replaces.
+ * Mirrored in stats-worker/src/record.ts, which also defaults to it.
+ */
+export const DEFAULT_NICK = "unknown";
+
 const CLIENT_ID_KEY = "quoridor.stats.client_id";
 
 /** Body content type. text/plain keeps each write a CORS *simple* request,
@@ -64,6 +71,12 @@ export interface ReporterOptions {
    * has usually not answered yet when the page auto-starts its first game.
    */
   webgpuOk?: () => boolean | null;
+  /**
+   * The player's name, read at send time for the same reason: a nick chosen
+   * part-way through should land on the game it was chosen during, not only on
+   * the next one. Defaults to DEFAULT_NICK while nothing asks for it.
+   */
+  nick?: () => string;
   fetchImpl?: typeof fetch;
   /** navigator.sendBeacon, or a stand-in. Used on the unload path only. */
   beaconImpl?: (url: string, body: Blob) => boolean;
@@ -142,6 +155,7 @@ export function createStatsReporter(opts: ReporterOptions): StatsReporter {
     appVersion,
     clientId,
     webgpuOk = () => null,
+    nick = () => DEFAULT_NICK,
     fetchImpl,
     beaconImpl,
     now = () => Date.now(),
@@ -163,6 +177,7 @@ export function createStatsReporter(opts: ReporterOptions): StatsReporter {
       undo_count: g.log.filter((e) => "u" in e).length,
       duration_ms: Math.max(0, Math.round(now() - g.startedAt)),
       client_id: clientId,
+      nick: nick(),
       app_version: appVersion,
       model_label: g.meta.modelLabel,
       model_id: g.meta.modelId,

@@ -17,12 +17,12 @@ import type { GameRecord } from "./record";
 export const UPSERT_SQL = `
 INSERT INTO game (
   game_id, started_at, updated_at, status, outcome, winner, moves, move_count,
-  action_log, undo_count, rev, duration_ms, client_id, schema_version, app_version,
+  action_log, undo_count, rev, duration_ms, client_id, nick, schema_version, app_version,
   model_label, model_id, board_size, max_walls, max_steps, human_player,
   mcts_n, c_puct, leaf_parallelism, virtual_loss, webgpu_ok, ip, user_agent, country
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 ON CONFLICT(game_id) DO UPDATE SET
   updated_at = excluded.updated_at,
@@ -34,7 +34,9 @@ ON CONFLICT(game_id) DO UPDATE SET
   action_log = excluded.action_log,
   undo_count = excluded.undo_count,
   rev = excluded.rev,
-  duration_ms = excluded.duration_ms
+  duration_ms = excluded.duration_ms,
+  -- Updatable so a nick chosen mid-game lands on the game it was chosen during.
+  nick = excluded.nick
 WHERE excluded.rev > game.rev AND game.status <> 'finished'`;
 
 /** Where the request came from. Read from headers, never from the payload. */
@@ -69,6 +71,7 @@ export function bindValues(
     r.rev,
     r.duration_ms,
     r.client_id,
+    r.nick,
     r.schema_version,
     r.app_version,
     r.model_label,

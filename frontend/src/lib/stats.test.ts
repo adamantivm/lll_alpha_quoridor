@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  DEFAULT_NICK,
   createStatsReporter,
   diffMoves,
   getClientId,
@@ -138,7 +139,19 @@ describe("createStatsReporter", () => {
       board_size: 9,
       mcts_n: 1000,
       webgpu_ok: true,
+      nick: DEFAULT_NICK,
     });
+  });
+
+  it("reads the nick at send time, so one chosen mid-game lands on it", () => {
+    // Nothing asks for a nick yet; this is the seam the UI change plugs into.
+    let nick = DEFAULT_NICK;
+    const { reporter, sent } = setup({ nick: () => nick });
+    reporter.startGame(META);
+    nick = "Ada";
+    reporter.recordView(view({ move_history: [12] }));
+    expect(sent[0].nick).toBe(DEFAULT_NICK);
+    expect(sent[1].nick).toBe("Ada");
   });
 
   it("reads the WebGPU verdict at send time, not at game start", () => {

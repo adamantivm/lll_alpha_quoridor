@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actionSpaceSize, validate } from "./record";
+import { DEFAULT_NICK, MAX_NICK_LENGTH, actionSpaceSize, parseNick, validate } from "./record";
 
 /** A minimal valid body; tests override single fields to probe one rule at a time. */
 function body(over: Record<string, unknown> = {}) {
@@ -15,6 +15,7 @@ function body(over: Record<string, unknown> = {}) {
     undo_count: 0,
     duration_ms: 1500,
     client_id: "c8b1a2d3",
+    nick: "ada",
     app_version: "abc1234",
     model_label: "9x9, 10 walls (v0)",
     model_id: "b9w10-v0",
@@ -43,6 +44,38 @@ describe("actionSpaceSize", () => {
   it("matches the wasm action layout", () => {
     expect(actionSpaceSize(5)).toBe(25 + 2 * 16);
     expect(actionSpaceSize(9)).toBe(81 + 2 * 64);
+  });
+});
+
+describe("parseNick", () => {
+  it("keeps a plain nick", () => {
+    expect(parseNick("ada")).toBe("ada");
+    expect(parseNick("  ada  ")).toBe("ada");
+  });
+
+  // The field is newer than clients that may still be cached, and a blank one
+  // is no more informative than none at all.
+  it("falls back when there is nothing to store", () => {
+    expect(parseNick(undefined)).toBe(DEFAULT_NICK);
+    expect(parseNick(null)).toBe(DEFAULT_NICK);
+    expect(parseNick("")).toBe(DEFAULT_NICK);
+    expect(parseNick("   ")).toBe(DEFAULT_NICK);
+    expect(parseNick("\n\t")).toBe(DEFAULT_NICK);
+  });
+
+  it("truncates rather than rejecting an over-long nick", () => {
+    const long = "x".repeat(MAX_NICK_LENGTH + 50);
+    expect(parseNick(long)).toBe("x".repeat(MAX_NICK_LENGTH));
+  });
+
+  it("strips control characters so a nick stays one printable line", () => {
+    expect(parseNick("a\u0000da\u0007!")).toBe("a da !");
+    expect(parseNick("line\nbreak")).toBe("line break");
+  });
+
+  it("rejects a non-string nick", () => {
+    expect(() => parseNick(42)).toThrow(/nick/);
+    expect(() => parseNick({ nick: "ada" })).toThrow(/nick/);
   });
 });
 
@@ -117,6 +150,14 @@ describe("validate", () => {
     expect(err({ game_id: "" })).toContain("game_id");
     expect(err({ client_id: 42 })).toContain("client_id");
     expect(err({ model_label: "x".repeat(121) })).toContain("model_label");
+  });
+
+  it("carries the nick through, defaulting when the client sends none", () => {
+    const named = validate(body({ nick: " Ada " }));
+    expect(named.ok && named.record.nick).toBe("Ada");
+    const anonymous = validate(body({ nick: undefined }));
+    expect(anonymous.ok && anonymous.record.nick).toBe(DEFAULT_NICK);
+    expect(err({ nick: 42 })).toContain("nick");
   });
 
   it("treats app_version and webgpu_ok as optional", () => {

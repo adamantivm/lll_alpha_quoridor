@@ -38,7 +38,7 @@ One `game` row, created at game start and rewritten after every move:
 
 | | |
 |---|---|
-| Identity | `game_id` (client UUID), `client_id` (anonymous, in localStorage), `started_at`/`updated_at` (server clocks) |
+| Identity | `game_id` (client UUID), `client_id` (anonymous, in localStorage), `nick`, `started_at`/`updated_at` (server clocks) |
 | Outcome | `status` (`in_progress`/`finished`/`abandoned`), `outcome` (`human_win`/`ai_win`/`draw`), `winner` |
 | The game | `moves`, `move_count`, `action_log`, `undo_count`, `duration_ms` |
 | Setup | `model_label`, `model_id`, `board_size`, `max_walls`, `max_steps`, `human_player`, the four MCTS settings |
@@ -51,8 +51,24 @@ as long as the version in the label is bumped whenever a model is retrained;
 two different networks shipped under one label become indistinguishable in the
 data.
 
-Nothing personal is collected and there is no account. The README says plainly
-what is recorded.
+There is no account. The README says plainly what is recorded.
+
+### The nick
+
+`nick` is the player's name, and every record says `unknown` for now — nothing
+asks for one, and the UI that will is a separate change. The column and the
+whole path to it exist so that change is only a matter of filling it in: the
+reporter reads the nick through a getter at send time (the same pattern the
+WebGPU verdict already uses), and the database accepts a new value on a later
+write, so a name chosen part-way through a game attaches to that game rather
+than only the next one. `statsClient.ts` marks the one line to point at whatever
+ends up holding the name.
+
+The worker is forgiving about it: absent, blank or over-long values fall back to
+`unknown` or get trimmed rather than costing us a game record, and control
+characters are stripped so a nick stays one printable line wherever it is shown.
+Tolerance is not just politeness — the worker and the site's cached bundle
+deploy separately, so a client that predates the field has to keep working.
 
 ### Two move columns, because of undo
 
@@ -113,7 +129,7 @@ Three manual steps, all in `stats-worker/README.md`:
 
 ## Verification
 
-Unit tests: 20 new frontend tests (`frontend/src/lib/stats.test.ts`) and 28
+Unit tests: 21 new frontend tests (`frontend/src/lib/stats.test.ts`) and 35
 worker tests. `sql.test.ts` runs the real `UPSERT_SQL` against the real
 `schema.sql` in an in-memory SQLite, so the ordering guard is tested rather than
 paraphrased — stale revisions ignored, finished games never overwritten,

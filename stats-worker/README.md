@@ -60,7 +60,7 @@ npx wrangler dev
 ```bash
 curl -X POST http://localhost:8787/v1/games \
   -H 'origin: http://localhost:5173' -H 'content-type: text/plain' \
-  -d '{"schema_version":1,"game_id":"demo-1","rev":1,"status":"in_progress","outcome":null,"winner":null,"moves":[12],"action_log":[{"m":12}],"undo_count":0,"duration_ms":0,"client_id":"dev","app_version":"dev","model_label":"9x9, 10 walls (v0)","model_id":"b9w10-v0","board_size":9,"max_walls":10,"max_steps":100,"human_player":0,"mcts_n":1000,"c_puct":1.4,"leaf_parallelism":8,"virtual_loss":1,"webgpu_ok":true}'
+  -d '{"schema_version":1,"game_id":"demo-1","rev":1,"status":"in_progress","outcome":null,"winner":null,"moves":[12],"action_log":[{"m":12}],"undo_count":0,"duration_ms":0,"client_id":"dev","nick":"unknown","app_version":"dev","model_label":"9x9, 10 walls (v0)","model_id":"b9w10-v0","board_size":9,"max_walls":10,"max_steps":100,"human_player":0,"mcts_n":1000,"c_puct":1.4,"leaf_parallelism":8,"virtual_loss":1,"webgpu_ok":true}'
 ```
 
 To point a local frontend at it:
@@ -97,6 +97,28 @@ Action indices are the same flat encoding the Python and Rust code use: `[0,
 N*N)` is a pawn move to `row*N+col`, then `(N-1)²` vertical wall placements,
 then `(N-1)²` horizontal ones.
 
+### The nick
+
+`nick` is the player's chosen name. Nothing in the UI asks for one yet, so every
+record currently says `unknown`; the field exists so the change that does ask
+only has to fill it in. It is deliberately forgiving — absent, blank or
+over-long values fall back or get trimmed instead of costing us the game record,
+and control characters are stripped so a nick stays one printable line. It is
+also updatable, unlike the rest of the setup fields: a name chosen part-way
+through a game attaches to that game, not just the next one.
+
+### Changing the schema
+
+`schema.sql` is `CREATE TABLE IF NOT EXISTS`, so re-running it against a
+database that already has the table does nothing. Adding a column to a live
+database means an explicit migration:
+
+```bash
+npx wrangler d1 execute quoridor-stats --remote --command "ALTER TABLE game ADD COLUMN nick TEXT NOT NULL DEFAULT 'unknown'"
+```
+
+Add the same column to `schema.sql` so a fresh database matches.
+
 ## Querying
 
 ```bash
@@ -122,6 +144,10 @@ SELECT move_count, count(*) FROM game WHERE status <> 'finished' GROUP BY 1 ORDE
 
 -- everything needed to replay one game
 SELECT board_size, max_walls, max_steps, human_player, moves FROM game WHERE game_id = '...';
+
+-- how each player is doing, once the UI asks for a nick
+SELECT nick, count(*) n, round(avg(outcome = 'human_win'), 3) win_rate
+FROM game WHERE status = 'finished' GROUP BY 1 ORDER BY n DESC;
 ```
 
 ## Tests

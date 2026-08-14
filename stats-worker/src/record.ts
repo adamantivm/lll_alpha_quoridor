@@ -9,6 +9,16 @@
 
 export const SCHEMA_VERSION = 1;
 
+/**
+ * What a player is called when we do not know: nothing asks for a nick yet.
+ * Also the fallback for a client too old to send the field, since the worker
+ * and the cached bundle deploy separately. Mirrored in frontend/src/lib/stats.ts.
+ */
+export const DEFAULT_NICK = "unknown";
+
+/** Longest nick we store. Long enough for a real name, short enough not to be a payload. */
+export const MAX_NICK_LENGTH = 40;
+
 /** Longest body we will read, before parsing. A 100-move game is well under 4 KB. */
 export const MAX_BODY_BYTES = 64 * 1024;
 
@@ -30,6 +40,7 @@ export interface GameRecord {
   undo_count: number;
   duration_ms: number;
   client_id: string;
+  nick: string;
   app_version: string | null;
   model_label: string;
   model_id: string;
@@ -70,6 +81,20 @@ function optStr(o: Record<string, unknown>, key: string, maxLen: number): string
   if (v === undefined || v === null) return null;
   if (typeof v !== "string") throw new Error(`${key} must be a string or null`);
   return v.slice(0, maxLen);
+}
+
+/**
+ * The player's chosen name. Tolerant on purpose: an absent, blank or
+ * over-long nick falls back or is trimmed rather than costing us the whole game
+ * record, since it is cosmetic and the field is newer than some clients.
+ * Control characters go, so a nick stays one printable line wherever it is shown.
+ */
+export function parseNick(raw: unknown): string {
+  if (raw === undefined || raw === null) return DEFAULT_NICK;
+  if (typeof raw !== "string") throw new Error("nick must be a string or null");
+  // \u0000-\u001F and \u007F: newlines, NULs and friends have no business in a display name.
+  const cleaned = raw.replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, MAX_NICK_LENGTH).trim();
+  return cleaned.length > 0 ? cleaned : DEFAULT_NICK;
 }
 
 function int(o: Record<string, unknown>, key: string, min: number, max: number): number {
@@ -180,6 +205,7 @@ export function validate(body: unknown): Validated {
         // poisoning duration averages.
         duration_ms: int(o, "duration_ms", 0, 86_400_000),
         client_id: str(o, "client_id", 64),
+        nick: parseNick(o.nick),
         app_version: optStr(o, "app_version", 64),
         model_label: str(o, "model_label", 120),
         model_id: str(o, "model_id", 64),

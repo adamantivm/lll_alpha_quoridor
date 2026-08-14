@@ -58,6 +58,7 @@ CREATE TABLE game (
   rev              INTEGER NOT NULL,  -- client write counter; the ordering guard
   duration_ms      INTEGER NOT NULL,
   client_id        TEXT NOT NULL,     -- anonymous random id, persisted in localStorage
+  nick             TEXT NOT NULL DEFAULT 'unknown',  -- player's name; 'unknown' until the UI asks
   schema_version   INTEGER NOT NULL,
   app_version      TEXT,              -- git sha, injected at build time
   model_label      TEXT NOT NULL,     -- exactly what the picker shows, e.g. "9×9, 10 walls (v0)"

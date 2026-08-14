@@ -43,6 +43,7 @@ function record(over: Record<string, unknown> = {}): GameRecord {
     undo_count: 0,
     duration_ms: 1000,
     client_id: "client-1",
+    nick: "ada",
     app_version: "abc1234",
     model_label: "9x9, 10 walls (v0)",
     model_id: "b9w10-v0",
@@ -89,6 +90,15 @@ describe.skipIf(!DatabaseSync)("UPSERT_SQL", () => {
     expect(row.user_agent).toBe("TestBrowser/1.0");
     expect(row.country).toBe("UY");
     expect(row.webgpu_ok).toBe(1);
+    expect(row.nick).toBe("ada");
+  });
+
+  // A nick chosen part-way through a game should attach to that game, not only
+  // to the next one.
+  it("lets a later write change the nick", () => {
+    write({});
+    write({ rev: 2, nick: "Grace" }, "2026-08-13T10:01:00.000Z");
+    expect(read()!.nick).toBe("Grace");
   });
 
   it("applies a newer revision and keeps the original started_at", () => {

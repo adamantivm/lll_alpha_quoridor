@@ -4,7 +4,7 @@
  * player walked away. Everything environment-shaped lives here so stats.ts
  * stays pure and testable.
  */
-import { createStatsReporter, getClientId, type StatsReporter } from "./stats";
+import { DEFAULT_NICK, createStatsReporter, getClientId, type StatsReporter } from "./stats";
 
 /**
  * `webgpuOk` is a getter because the probe in webgpu.ts is async: the first
@@ -19,6 +19,9 @@ export function createAppReporter(webgpuOk: () => boolean | null): StatsReporter
     appVersion: __APP_VERSION__,
     clientId: getClientId(),
     webgpuOk,
+    // Where the nick UI will hook in: point this at whatever holds the player's
+    // chosen name and every write, including mid-game ones, picks it up.
+    nick: () => DEFAULT_NICK,
     beaconImpl:
       typeof navigator !== "undefined" && navigator.sendBeacon
         ? navigator.sendBeacon.bind(navigator)
