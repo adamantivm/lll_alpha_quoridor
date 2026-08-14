@@ -11,9 +11,9 @@ import { UPSERT_SQL, bindValues } from "./sql";
 export interface Env {
   DB: D1Database;
   ALLOWED_ORIGINS: string;
-  // Declared as an unsafe binding in wrangler.toml, and absent in some local
-  // dev setups, so every use has to tolerate it being undefined.
-  RATE_LIMIT?: { limit(o: { key: string }): Promise<{ success: boolean }> };
+  // Optional because a rate limit binding is not always materialised in local
+  // dev, and losing the limiter there must not take the endpoint down with it.
+  RATE_LIMIT?: RateLimit;
 }
 
 function corsHeaders(origin: string | null, env: Env): Record<string, string> {

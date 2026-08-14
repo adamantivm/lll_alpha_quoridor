@@ -115,6 +115,18 @@ CI builds write nothing.
 Requests use a `text/plain` content type so each per-move write stays a CORS
 simple request and skips the preflight round trip.
 
+## Tooling
+
+The worker is on wrangler 4; npm now tags the 3.x line `legacy`, and there is no
+reason for a worker that has never been deployed to start a major version
+behind. The upgrade also lets the rate limiter be a first-class `[[ratelimits]]`
+binding instead of the `[[unsafe.bindings]]` block 3.x required — wrangler
+validates the limit and period, reports the binding as `120 requests/60s`
+instead of "Unsafe Metadata", and no longer warns that the field may change or
+break at any time. `Env.RATE_LIMIT` now uses the `RateLimit` type from
+`@cloudflare/workers-types` (also bumped, to v5) rather than a hand-written
+shape.
+
 ## Before this collects anything
 
 Three manual steps, all in `stats-worker/README.md`:
@@ -146,6 +158,7 @@ browser:
 | Navigated away mid-game | `abandoned` at rev 4 with both moves intact |
 | Stale `rev` and a late `abandoned` beacon after a win | both ignored; row stayed `finished` |
 | Bad origin / oversized body / invalid action index | 403 / 413 / 400, nothing written |
+| Rate limiter, 140 requests from one IP | 120 accepted, the next 20 refused with 429 |
 | Request metadata | `ip`, `user_agent`, `country` populated from headers |
 | `webgpu_ok` | null on the first write, `1` once the async probe answered |
 

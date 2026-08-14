@@ -12,13 +12,12 @@ ALLOWED_ORIGINS = "https://adamantivm.github.io,http://localhost:5173,http://loc
 binding = "DB"
 database_name = "quoridor-stats"
 # Filled in by `npx wrangler d1 create quoridor-stats` -- see README.md.
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "126a44cf-fabf-42b1-b288-b6f8db340d65"
 
 # Writes happen once per move, so a public endpoint needs a cap. 120 requests
 # per minute per IP is far above a human playing one game and far below anything
 # that would matter to the free tier.
-[[unsafe.bindings]]
+[[ratelimits]]
 name = "RATE_LIMIT"
-type = "ratelimit"
 namespace_id = "1001"
 simple = { limit = 120, period = 60 }
