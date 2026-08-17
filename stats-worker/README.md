@@ -99,14 +99,14 @@ then `(N-1)²` horizontal ones.
 
 ### The nick
 
-`nick` is the player's chosen name, asked for on the setup screen before a game
-starts and remembered in the browser for the next visit. It is optional, and a
-player who leaves it blank is recorded as `unknown`. Validation is deliberately
-forgiving — absent, blank or over-long values fall back or get trimmed instead
-of costing us the game record, and control characters are stripped so a nick
-stays one printable line. It is also updatable, unlike the rest of the setup
-fields: a name chosen part-way through a game attaches to that game, not just
-the next one.
+`nick` is the player's chosen name. The setup screen requires one before it will
+start a game, and remembers it in the browser for the next visit, so new records
+carry a real name; `unknown` is what older rows say. Validation stays
+deliberately forgiving — absent, blank or over-long values fall back or get
+trimmed instead of costing us the game record, and control characters are
+stripped so a nick stays one printable line. It is also updatable, unlike the
+rest of the setup fields: a name chosen part-way through a game attaches to that
+game, not just the next one.
 
 ### Changing the schema
 

@@ -41,11 +41,15 @@ only place that showed what you were playing against.
 keeps the previous choices filled in, so replaying the same setup is one extra
 click. Leaving a game in progress this way still reports it abandoned, as before.
 
-**Nicknames.** Optional free text, capped at the worker's `MAX_NICK_LENGTH` of
-40. Blank means anonymous and still records `unknown`. The name is remembered in
-`localStorage` (`quoridor.stats.nick`, beside the client id, with the same
+**Nicknames.** Required: **Start game** stays disabled, with the reason under it,
+until one is entered, and whitespace does not count — the button gates on the
+same trim the reporter and the worker apply, so what unlocks it is what would be
+recorded. Capped at the worker's `MAX_NICK_LENGTH` of 40. The name is remembered
+in `localStorage` (`quoridor.stats.nick`, beside the client id, with the same
 storage-can-throw handling for Safari private mode) so a returning player does
-not retype it. It is read at send time through the existing reporter seam.
+not retype it, and it is read at send time through the existing reporter seam.
+`DEFAULT_NICK` survives as a defensive floor on the write path rather than a
+path the UI can take.
 
 **The rules of the game**, which the site never explained. `RulesDialog.svelte`
 covers two-player Quoridor — winning, the move-or-wall turn, jumps, walls, the
@@ -91,6 +95,8 @@ existed only to push mid-game parameter edits, which can no longer happen.
 - `npm --prefix frontend run build` and `run check:build` — clean.
 - Driven in a real browser against `npm run preview`:
   - setup screen renders and Start hides it;
+  - Start is disabled with no nickname and with whitespace only, and enables on
+    a real one;
   - starting as P2 has the AI open (Moves: 1) and play proceeds normally;
   - New game returns to setup with nickname, model, side and sims preserved;
   - the nickname survives a page reload, the rest resets to defaults;

@@ -24,8 +24,9 @@ export function createAppReporter(sources: {
     appVersion: __APP_VERSION__,
     clientId: getClientId(),
     webgpuOk,
-    // Blank is how the setup screen says "anonymous"; the worker would default
-    // it anyway, but sending the sentinel keeps the two ends reading the same.
+    // The setup screen will not start a game without a name, so the fallback is
+    // a floor rather than a path anyone takes -- and it matches what the worker
+    // would store if a blank one ever reached it.
     nick: () => nick().trim() || DEFAULT_NICK,
     beaconImpl:
       typeof navigator !== "undefined" && navigator.sendBeacon

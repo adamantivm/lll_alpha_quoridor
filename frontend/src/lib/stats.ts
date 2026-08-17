@@ -16,8 +16,9 @@ import type { StateView } from "./types";
 export const STATS_SCHEMA_VERSION = 1;
 
 /**
- * What a player is called when they leave the nick blank on the setup screen.
- * Mirrored in stats-worker/src/record.ts, which also defaults to it.
+ * What a player is called when we do not have a name for them. The setup screen
+ * requires one, so this covers older records and anything that reaches the
+ * worker without one. Mirrored in stats-worker/src/record.ts.
  */
 export const DEFAULT_NICK = "unknown";
 

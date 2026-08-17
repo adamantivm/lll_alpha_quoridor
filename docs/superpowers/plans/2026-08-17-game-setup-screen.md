@@ -58,7 +58,10 @@ has to read the screen and press a button first.
 
 - Free text, max 40 chars (`MAX_NICK_LENGTH` in the worker; over-long nicks are
   truncated there anyway, but the input should not let it happen).
-- Blank means anonymous: the client sends `DEFAULT_NICK`, same as today.
+- Required: no game starts without one, so every new record carries a real name.
+  Whitespace does not count — the button gates on the same trim the reporter and
+  the worker apply. `DEFAULT_NICK` survives as a defensive floor on the write
+  path, not as a path the UI can take.
 - Remembered in `localStorage` under `quoridor.stats.nick` so a returning player
   does not retype it. Stored next to the client id, with the same
   storage-can-throw handling (Safari private mode).

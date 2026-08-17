@@ -15,6 +15,10 @@
     onstart: () => void;
     onrules: () => void;
   } = $props();
+
+  // Whitespace is not a name. This is the same trim the reporter and the stats
+  // worker apply, so what gates the button is what would be recorded.
+  const named = $derived(nick.trim().length > 0);
 </script>
 
 <div class="setup">
@@ -25,9 +29,10 @@
   </p>
 
   <label>Nickname
-    <input type="text" value={nick} maxlength={MAX_NICK_LENGTH} placeholder="anonymous"
+    <input type="text" value={nick} maxlength={MAX_NICK_LENGTH} required
+      placeholder="How should we call you?"
       oninput={(e) => onnick(e.currentTarget.value)} />
-    <small class="hint">Optional. Stored with the game record so you can find your games later.</small>
+    <small class="hint">Stored with the game record so you can find your games later.</small>
   </label>
 
   <label>Model
@@ -97,7 +102,8 @@
     </label>
   </fieldset>
 
-  <button class="start" onclick={onstart}>Start game</button>
+  <button class="start" onclick={onstart} disabled={!named}>Start game</button>
+  {#if !named}<small class="hint need-nick">Enter a nickname to start.</small>{/if}
 </div>
 
 <style>
@@ -166,5 +172,7 @@
     color: #fff;
     cursor: pointer;
   }
-  .start:hover { background: #17306f; }
+  .start:hover:not(:disabled) { background: #17306f; }
+  .start:disabled { background: #b9bdcb; cursor: not-allowed; }
+  .need-nick { margin-top: -8px; text-align: center; }
 </style>

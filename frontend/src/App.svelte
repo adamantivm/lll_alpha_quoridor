@@ -62,6 +62,9 @@
   );
 
   function startGame() {
+    // The setup screen disables its button without one; this keeps the rule at
+    // the point that acts on it rather than only in the markup.
+    if (!nick.trim()) return;
     saveNick(nick);
     started = true;
     error = null; thinking = true; progress = null; view = null;

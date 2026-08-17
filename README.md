@@ -12,10 +12,10 @@ entirely in your browser, no install required.
 
 Games played on that site are recorded — the moves, which model and settings
 were used, and the requesting IP and browser — so we can see how the models do
-against people and replay interesting games. There is no account: the setup
-screen asks for a nickname, and leaving it blank records the game as `unknown`.
-See [stats-worker/](stats-worker/) for the schema and the queries. Running the
-site locally records nothing.
+against people and replay interesting games. There is no account, but the setup
+screen does ask for a nickname before it will start a game, and that name goes
+on the record. See [stats-worker/](stats-worker/) for the schema and the
+queries. Running the site locally records nothing.
 
 ## Prerequisites
 
