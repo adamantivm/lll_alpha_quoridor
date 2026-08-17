@@ -63,10 +63,17 @@ curl -X POST http://localhost:8787/v1/games \
   -d '{"schema_version":1,"game_id":"demo-1","rev":1,"status":"in_progress","outcome":null,"winner":null,"moves":[12],"action_log":[{"m":12}],"undo_count":0,"duration_ms":0,"client_id":"dev","nick":"unknown","app_version":"dev","model_label":"9x9, 10 walls (v0)","model_id":"b9w10-v0","board_size":9,"max_walls":10,"max_steps":100,"human_player":0,"mcts_n":1000,"c_puct":1.4,"leaf_parallelism":8,"virtual_loss":1,"webgpu_ok":true}'
 ```
 
-To point a local frontend at it:
+Read it back:
 
 ```bash
-VITE_STATS_ENDPOINT=http://localhost:8787/v1/games npm --prefix ../frontend run dev
+curl -s -H 'origin: http://localhost:4173' 'http://localhost:8787/v1/games?limit=5'
+```
+
+To point a local frontend at it (`run dev` is broken for that app — see
+`frontend/README.md` — so build and preview, on the port the allowlist expects):
+
+```bash
+VITE_STATS_ENDPOINT=http://localhost:8787/v1/games npm --prefix ../frontend run build && npm --prefix ../frontend run preview
 ```
 
 ## API
@@ -81,6 +88,28 @@ only if its `rev` beats the stored one and the game is not already `finished`,
 so a late `pagehide` beacon cannot overwrite a win, and a retry that overtakes
 its predecessor is dropped. This is a `WHERE` clause on the `ON CONFLICT` —
 see `src/sql.ts`.
+
+`GET /v1/games?limit=&cursor=&status=` — the recorded games, newest first,
+without the move lists. Answers `{"games": [...], "next_cursor": "..."}`;
+`next_cursor` is null once there is nothing left. `limit` defaults to 200 and
+caps at 500. A `limit`, `cursor` or `status` the worker cannot use is a 400
+rather than a silent default — a caller paginating with an unparseable cursor
+would otherwise loop over page one forever.
+
+Pagination is keyset on the `(started_at, game_id)` pair, not `OFFSET`.
+`started_at` is a server timestamp with no uniqueness guarantee, so a plain
+`started_at <` cursor would cost us one of two games recorded in the same
+millisecond.
+
+**`ip` and `user_agent` are not in the response, and should stay out of it.**
+The stats page is public, no statistic on it needs either, and both are
+collected from the request for abuse handling only. `country` is exposed.
+
+`GET /v1/games/{game_id}` — one game, with `moves` and `action_log` added, which
+is everything the replay viewer needs. 404 if there is no such game.
+
+Reads share the write path's origin allowlist and per-IP rate limit, and carry
+`cache-control: public, max-age=30`.
 
 `GET /v1/health` — liveness.
 
@@ -120,6 +149,11 @@ npx wrangler d1 execute quoridor-stats --remote --command "ALTER TABLE game ADD 
 Add the same column to `schema.sql` so a fresh database matches.
 
 ## Querying
+
+The site's own stats page (`frontend/stats.html`, deployed at
+`/stats.html`) reads both endpoints above: win rates grouped by model, MCTS sims
+and c_puct, and a replay of any recorded game. For anything it does not show,
+query the database directly:
 
 ```bash
 npx wrangler d1 execute quoridor-stats --remote --command "SELECT date(started_at) d, count(*) n FROM game GROUP BY d ORDER BY d DESC LIMIT 14"
