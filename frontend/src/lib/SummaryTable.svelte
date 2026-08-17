@@ -60,7 +60,6 @@
         <th class="num">AI as P1</th>
         <th class="num">AI as P2</th>
         <th class="num">human</th>
-        <th class="num">draws</th>
         <th class="num sortable" class:sorted={sortKey === "moves"} onclick={() => sortBy("moves")}>
           plies (median)
         </th>
@@ -91,7 +90,6 @@
           <td class="num">{record(g.aiFirst)}</td>
           <td class="num">{record(g.aiSecond)}</td>
           <td class="num">{g.overall.humanWins}</td>
-          <td class="num">{g.overall.draws}</td>
           <td class="num">{g.moves ? g.moves.median : "—"}</td>
           <td class="num">
             {#if g.moves}{one(g.moves.mean)} · {g.moves.min}–{g.moves.max}{:else}—{/if}
@@ -101,7 +99,7 @@
         </tr>
       {/each}
       {#if sorted.length === 0}
-        <tr><td colspan="14" class="hint">No games match these filters.</td></tr>
+        <tr><td colspan="13" class="hint">No games match these filters.</td></tr>
       {/if}
     </tbody>
   </table>

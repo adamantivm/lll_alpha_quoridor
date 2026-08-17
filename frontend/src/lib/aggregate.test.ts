@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   applyFilters,
   DEFAULT_FILTERS,
+  MIN_PLIES,
+  dropTrivial,
   groupGames,
   groupKeyOf,
   median,
@@ -156,10 +158,24 @@ describe("groupGames", () => {
   });
 });
 
+describe("dropTrivial", () => {
+  // A record is written the moment a game starts, so the database collects
+  // visitors who opened the page and left.
+  it("drops games too short to say anything", () => {
+    const kept = dropTrivial([
+      game({ game_id: "opened", move_count: 0 }),
+      game({ game_id: "one-move", move_count: 1 }),
+      game({ game_id: "shortest-kept", move_count: MIN_PLIES }),
+      game({ game_id: "real", move_count: 40 }),
+    ]);
+    expect(kept.map((g) => g.game_id)).toEqual(["shortest-kept", "real"]);
+  });
+});
+
 describe("applyFilters", () => {
   const games = [
     game({ game_id: "1", undo_count: 2, nick: "ada" }),
-    game({ game_id: "2", undo_count: 0, nick: "grace", board_size: 5, app_version: "dev" }),
+    game({ game_id: "2", undo_count: 0, nick: "grace", model_id: "b5w2-mv1", app_version: "dev" }),
     game({ game_id: "3", undo_count: 0, nick: "ada", status: "abandoned", outcome: null }),
   ];
   const ids = (f: Parameters<typeof applyFilters>[1]) => applyFilters(games, f).map((g) => g.game_id);
@@ -173,9 +189,9 @@ describe("applyFilters", () => {
   it("combines the other filters", () => {
     expect(ids({ ...DEFAULT_FILTERS, nick: "ada" })).toEqual(["3"]);
     expect(ids({ ...DEFAULT_FILTERS, status: "finished" })).toEqual(["2"]);
-    expect(ids({ ...DEFAULT_FILTERS, boardSize: 5 })).toEqual(["2"]);
+    expect(ids({ ...DEFAULT_FILTERS, modelId: "b5w2-mv1" })).toEqual(["2"]);
     expect(ids({ ...DEFAULT_FILTERS, appVersion: "dev" })).toEqual(["2"]);
-    expect(ids({ ...DEFAULT_FILTERS, nick: "grace", boardSize: 9 })).toEqual([]);
+    expect(ids({ ...DEFAULT_FILTERS, nick: "grace", modelId: "b9w10-v0" })).toEqual([]);
   });
 });
 

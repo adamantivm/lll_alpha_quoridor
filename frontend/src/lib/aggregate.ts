@@ -17,12 +17,25 @@
  */
 import type { GameStatus, GameSummary } from "./statsApi";
 
+/**
+ * Shortest game worth keeping. A record is written the moment a game starts, so
+ * the database collects visitors who opened the page and left, and the odd
+ * single move on top of that -- neither says anything about anything. Raise this
+ * if the noise floor moves.
+ */
+export const MIN_PLIES = 2;
+
+/** Everything a barely-started game would only add noise to. */
+export function dropTrivial(games: readonly GameSummary[]): GameSummary[] {
+  return games.filter((g) => g.move_count >= MIN_PLIES);
+}
+
 export interface Filters {
   /** Drop games where the human took a move back: not clean strength samples. */
   excludeUndos: boolean;
   nick: string | null;
   appVersion: string | null;
-  boardSize: number | null;
+  modelId: string | null;
   status: GameStatus | null;
 }
 
@@ -30,7 +43,7 @@ export const DEFAULT_FILTERS: Filters = {
   excludeUndos: true,
   nick: null,
   appVersion: null,
-  boardSize: null,
+  modelId: null,
   status: null,
 };
 
@@ -40,7 +53,7 @@ export function applyFilters(games: readonly GameSummary[], f: Filters): GameSum
       (!f.excludeUndos || g.undo_count === 0) &&
       (f.nick === null || g.nick === f.nick) &&
       (f.appVersion === null || g.app_version === f.appVersion) &&
-      (f.boardSize === null || g.board_size === f.boardSize) &&
+      (f.modelId === null || g.model_id === f.modelId) &&
       (f.status === null || g.status === f.status),
   );
 }

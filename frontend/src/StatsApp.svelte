@@ -2,7 +2,15 @@
   import GameList from "./lib/GameList.svelte";
   import Replay from "./lib/Replay.svelte";
   import SummaryTable from "./lib/SummaryTable.svelte";
-  import { DEFAULT_FILTERS, applyFilters, groupGames, totals, type Filters } from "./lib/aggregate";
+  import {
+    DEFAULT_FILTERS,
+    MIN_PLIES,
+    applyFilters,
+    dropTrivial,
+    groupGames,
+    totals,
+    type Filters,
+  } from "./lib/aggregate";
   import {
     MAX_ROWS,
     fetchAllGames,
@@ -16,6 +24,7 @@
   const endpoint = statsEndpoint();
 
   let games = $state<GameSummary[]>([]);
+  let trivial = $state(0);
   let loading = $state(true);
   let truncated = $state(false);
   let error = $state<string | null>(null);
@@ -32,7 +41,12 @@
   const versions = $derived(
     [...new Set(games.map((g) => g.app_version).filter((v): v is string => v !== null))].sort(),
   );
-  const boardSizes = $derived([...new Set(games.map((g) => g.board_size))].sort((a, b) => a - b));
+  /** id -> label, so the picker reads like the play page's model list. */
+  const models = $derived(
+    [...new Map(games.map((g) => [g.model_id, g.model_label]))].sort((a, b) =>
+      a[0].localeCompare(b[0]),
+    ),
+  );
 
   const fetchImpl = (url: string) => fetch(url);
 
@@ -43,7 +57,11 @@
     }
     try {
       const result = await fetchAllGames(endpoint, fetchImpl);
-      games = result.games;
+      // Barely-started games are dropped here rather than in the filters: they
+      // are not a view of the data anyone wants, so they should not be in the
+      // headline counts either.
+      games = dropTrivial(result.games);
+      trivial = result.games.length - games.length;
       truncated = result.truncated;
       // A link to one game replays that game: /stats.html?game=<id>.
       const wanted = new URLSearchParams(location.search).get("game");
@@ -108,6 +126,12 @@
     {overall.players} player{overall.players === 1 ? "" : "s"} ·
     {overall.models} model{overall.models === 1 ? "" : "s"} ·
     {day(overall.first)} – {day(overall.last)}
+    {#if trivial > 0}
+      <br /><small class="hint">
+        {trivial} game{trivial === 1 ? "" : "s"} of under {MIN_PLIES} plies not counted — someone
+        opened the page and left.
+      </small>
+    {/if}
     {#if truncated}
       <br /><small class="warn">
         Showing the most recent {MAX_ROWS} games only — the rest are in the database.
@@ -144,14 +168,13 @@
       </select>
     </label>
     <label>
-      Board
+      Model
       <select
-        value={filters.boardSize === null ? "" : String(filters.boardSize)}
-        onchange={(e) =>
-          (filters.boardSize = e.currentTarget.value ? +e.currentTarget.value : null)}
+        value={filters.modelId ?? ""}
+        onchange={(e) => (filters.modelId = e.currentTarget.value || null)}
       >
         <option value="">any</option>
-        {#each boardSizes as s}<option value={s}>{s}×{s}</option>{/each}
+        {#each models as [id, label]}<option value={id}>{label}</option>{/each}
       </select>
     </label>
     <label>

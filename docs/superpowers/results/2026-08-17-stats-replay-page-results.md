@@ -15,22 +15,27 @@ Plan: `docs/superpowers/plans/2026-08-17-stats-replay-page.md`
 decide how strong the AI plays. Per group: games played, how many finished, the
 AI's record overall and **split by the seat it played** (P1 is the side that moves
 first, so the AI is P1 exactly when the human chose to move second), human wins,
-draws, and plies per finished game as median, mean and min–max, plus the mean
-plies of AI wins against human wins.
+and plies per finished game as median, mean and min–max, plus the mean plies of
+AI wins against human wins. Draws still count in the denominator of every rate;
+they are rare enough (the step cap) not to be worth a column.
 
 Leaf parallelism and virtual loss are deliberately *not* part of the grouping key:
 they change how the search batches, not what it converges to, and splitting on
 them would only thin out already small samples. The values seen in each group are
 reported, so a surprise there is still visible.
 
-Two conventions, both stated on the page: win rates count **finished games only**
-(an abandoned game has no result, and counting it as anything would bias the
-rate), and games where the player took a move back are **excluded by default** —
-they are not clean strength samples. Both are one click away.
+Three rules about what counts. Win rates count **finished games only** (an
+abandoned game has no result, and counting it as anything would bias the rate).
+Games where the player took a move back are **excluded by default** — they are not
+clean strength samples — which is one click away. And games of **under `MIN_PLIES`
+(2) plies are dropped entirely**: a record is written the moment a game starts, so
+the database collects visitors who opened the page and left, and they belong in no
+count on this page. The header says how many were dropped, and the constant is one
+number to raise if the noise floor moves.
 
 **Games list** — every recorded game, finished or not, with date, player, model,
 settings, which seat the AI had, result, plies, takebacks and duration. Filters
-for player, status, board size and build.
+for player, model, status and build.
 
 **Replay** — pick a game and step through it: first/prev/play/next/last, a
 scrubber, ← and → keys, and a clickable ply list ("12 · ada · move to (4, 4)",
