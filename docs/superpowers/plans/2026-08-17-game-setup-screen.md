@@ -79,6 +79,27 @@ has to read the screen and press a button first.
    handlers, conditional rendering.
 6. `frontend/src/lib/stats.test.ts` -- cover `loadNick` / `saveNick`.
 
+## Follow-on: the rules
+
+The site never explained the game. With a setup screen there is now an obvious
+place to put that, so `RulesDialog.svelte` holds the rules of **two-player**
+Quoridor (the physical game's four-player variant is out of scope — nothing here
+plays it) in a native `<dialog>`.
+
+- Opened from a "How to play" link on the setup screen and a button in the rail,
+  because the jump and wall rules are exactly what a new player looks up while
+  staring at a position. One instance, owned by `App.svelte`.
+- `<dialog>` + `showModal()` for Esc-to-close, focus trapping and the backdrop.
+  The element's own `close` event drives the parent's flag, so a native close
+  cannot leave the two disagreeing.
+- Board size, wall count and the step cap come from the selected model, so the
+  text describes the game in front of the player and not the standard 9×9.
+- Written against what the engine actually enforces (`rust/src/validation.rs`):
+  straight jump only when the landing square is free, diagonal only when the
+  square behind the opponent is a wall or the board edge, walls may not overlap
+  or cross, no wall may leave either player with no path to their goal row, and
+  the step cap is a draw.
+
 ## Verification
 
 - `npm test` in `frontend/` (vitest) and `npx svelte-check`.

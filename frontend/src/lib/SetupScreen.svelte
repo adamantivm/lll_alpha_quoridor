@@ -2,7 +2,7 @@
   import type { ModelEntry } from "./models";
   import { MAX_NICK_LENGTH } from "./stats";
   type Params = { mctsN: number; cPuct: number; leafParallelism: number; virtualLoss: number };
-  let { models, selected, params, humanPlayer, nick, onmodel, onparams, onhumanplayer, onnick, onstart }: {
+  let { models, selected, params, humanPlayer, nick, onmodel, onparams, onhumanplayer, onnick, onstart, onrules }: {
     models: ModelEntry[];
     selected: ModelEntry;
     params: Params;
@@ -13,12 +13,16 @@
     onhumanplayer: (p: number) => void;
     onnick: (nick: string) => void;
     onstart: () => void;
+    onrules: () => void;
   } = $props();
 </script>
 
 <div class="setup">
   <h1>Quoridor</h1>
-  <p class="lede">Play against a network trained by self-play. Set the game up, then start.</p>
+  <p class="lede">
+    Play against a network trained by self-play. Set the game up, then start.
+    New to the game? <button type="button" class="link" onclick={onrules}>How to play</button>.
+  </p>
 
   <label>Nickname
     <input type="text" value={nick} maxlength={MAX_NICK_LENGTH} placeholder="anonymous"
@@ -56,19 +60,41 @@
        strength half-way through makes the game, and its record, meaningless. -->
   <fieldset>
     <legend>AI search</legend>
+    <small class="hint">
+      The defaults come with the model and are a reasonable opponent. Turn them
+      down for a faster or weaker game.
+    </small>
+
     <label>MCTS sims: {params.mctsN}
       <input type="range" min="16" max="2000" step="16" value={params.mctsN}
         oninput={(e) => onparams({ ...params, mctsN: +e.currentTarget.value })} />
+      <small class="hint">
+        How many possible continuations the AI tries before committing to a move.
+        More is stronger and slower — this is the main strength dial.
+      </small>
     </label>
+
     <label>c_puct: {params.cPuct}
       <input type="range" min="0.5" max="3" step="0.1" value={params.cPuct}
         oninput={(e) => onparams({ ...params, cPuct: +e.currentTarget.value })} />
+      <small class="hint">
+        How curious the search is. Low values dig deeper into the moves it
+        already likes; high values spread the same effort over more candidates.
+        The default is tuned — moving it far either way tends to play worse, not
+        faster.
+      </small>
     </label>
+
     <label>leaf parallelism: {params.leafParallelism}
       <input type="range" min="1" max="32" step="1" value={params.leafParallelism}
         oninput={(e) => onparams({ ...params, leafParallelism: +e.currentTarget.value })} />
+      <small class="hint">
+        How many positions are sent to the network at once. More is faster,
+        because your GPU would rather grade a batch than one at a time — but the
+        search has to guess about the positions still in flight, so the AI may
+        play slightly worse.
+      </small>
     </label>
-    <small class="hint">More sims means a stronger, slower opponent. Defaults come with the model.</small>
   </fieldset>
 
   <button class="start" onclick={onstart}>Start game</button>
@@ -93,12 +119,13 @@
   fieldset {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     margin: 0;
     padding: 10px 12px 12px;
     border: 1px solid #e0d3b8;
     border-radius: 8px;
   }
+  fieldset .hint { line-height: 1.4; }
   legend { font-size: 0.85rem; font-weight: 600; padding: 0 4px; }
   .who { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; }
   .who-label { font-weight: 600; }
@@ -118,6 +145,17 @@
   .segmented label.sel { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
   .segmented input { margin: 0; }
   .hint { color: #6b5a3f; }
+  /* A button, because it opens a dialog rather than going anywhere, but it
+     should read as the link it looks like. */
+  .link {
+    font: inherit;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #1e3a8a;
+    text-decoration: underline;
+    cursor: pointer;
+  }
   .start {
     font: inherit;
     font-weight: 600;

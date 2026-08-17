@@ -1,7 +1,8 @@
 # Pre-game setup screen
 
 Moves the model / who-plays-first / MCTS settings out of the sidebar and in
-front of the game, and finally asks the player for a nickname.
+front of the game, asks the player for a nickname, and adds the rules of the
+game — which the site has never actually explained.
 
 Plan: [docs/superpowers/plans/2026-08-17-game-setup-screen.md](../plans/2026-08-17-game-setup-screen.md)
 
@@ -46,6 +47,25 @@ click. Leaving a game in progress this way still reports it abandoned, as before
 storage-can-throw handling for Safari private mode) so a returning player does
 not retype it. It is read at send time through the existing reporter seam.
 
+**The rules of the game**, which the site never explained. `RulesDialog.svelte`
+covers two-player Quoridor — winning, the move-or-wall turn, jumps, walls, the
+never-seal-anyone-in rule and the step-cap draw — written against what
+`rust/src/validation.rs` actually enforces rather than the boxed rules, and using
+the selected model's board size, wall count and step cap so it describes the game
+in front of the player. (The physical game's four-player variant is out of scope;
+nothing here plays it.) It opens from a *How to play* link on the setup screen
+and a button in the rail, since the jump and wall rules are exactly what a new
+player looks up mid-position. A native `<dialog>` gives Esc-to-close, focus
+trapping and the backdrop; its own `close` event drives the parent's flag, so a
+native close cannot leave the two disagreeing.
+
+**The search settings explain themselves.** Each slider now carries a line saying
+what it does: sims is the strength dial, `c_puct` trades depth against breadth
+(and moving it far from the tuned default plays worse rather than faster), and
+leaf parallelism is faster because the GPU prefers a batch — at the cost of the
+search guessing about the positions still in flight, so the AI may play slightly
+worse.
+
 **Dead code removed.** `setParams` on the AI client and its handler in the worker
 existed only to push mid-game parameter edits, which can no longer happen.
 
@@ -54,8 +74,9 @@ existed only to push mid-game parameter edits, which can no longer happen.
 | File | Change |
 | --- | --- |
 | `frontend/src/lib/SetupScreen.svelte` | New; replaces `ConfigDrawer.svelte` |
-| `frontend/src/App.svelte` | `started` / `nick` state, start and back-to-setup handlers, conditional render |
-| `frontend/src/lib/ControlRail.svelte` | Read-only setup summary; New game goes back to setup |
+| `frontend/src/lib/RulesDialog.svelte` | New; the two-player rules |
+| `frontend/src/App.svelte` | `started` / `nick` / `showRules` state, start and back-to-setup handlers, conditional render |
+| `frontend/src/lib/ControlRail.svelte` | Read-only setup summary; New game goes back to setup; How to play |
 | `frontend/src/lib/stats.ts` | `loadNick` / `saveNick`, `MAX_NICK_LENGTH` |
 | `frontend/src/lib/statsClient.ts` | `createAppReporter({ webgpuOk, nick })` |
 | `frontend/src/lib/aiClient.ts`, `frontend/src/ai.worker.ts` | Drop `setParams` |
@@ -75,4 +96,7 @@ existed only to push mid-game parameter edits, which can no longer happen.
   - the nickname survives a page reload, the rest resets to defaults;
   - switching model updates the board hint and loads that model's search
     defaults, and the 5×5 model then loads and plays;
-  - no console errors; the card layout holds at 375px wide.
+  - the rules dialog opens from both entry points, closes by button, reopens
+    scrolled back to the top, and picks up the selected model's numbers (10
+    walls / 100 moves on 9×9, 2 walls / 50 moves on 5×5);
+  - no console errors; setup card and dialog both hold up at 375px wide.

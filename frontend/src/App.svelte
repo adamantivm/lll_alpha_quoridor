@@ -1,6 +1,7 @@
 <script lang="ts">
   import Board from "./lib/Board.svelte";
   import ControlRail from "./lib/ControlRail.svelte";
+  import RulesDialog from "./lib/RulesDialog.svelte";
   import SetupScreen from "./lib/SetupScreen.svelte";
   import WebGpuBanner from "./lib/WebGpuBanner.svelte";
   import { AiClient } from "./lib/aiClient";
@@ -22,6 +23,9 @@
   let error = $state<string | null>(null);
   let humanPlayer = $state(0);
   let nick = $state(loadNick());
+  // One dialog for both screens: the rules do not change once a game starts,
+  // and a mid-game reader wants the same text a first-time visitor does.
+  let showRules = $state(false);
   let params = $state({
     mctsN: initial.defaults.mcts_n,
     cPuct: initial.defaults.mcts_c_puct,
@@ -110,7 +114,8 @@
     onparams={(p) => { params = p; }}
     onhumanplayer={(p) => { humanPlayer = p; }}
     onnick={(n) => { nick = n; }}
-    onstart={startGame} />
+    onstart={startGame}
+    onrules={() => { showRules = true; }} />
 {:else}
   <div class="layout">
     <div>
@@ -131,9 +136,14 @@
       {/if}
     </div>
     <ControlRail {view} {thinking} {progress} {selected} {params} {humanPlayer}
-      onundo={() => ai.undo(2)} onnewgame={backToSetup} />
+      onundo={() => ai.undo(2)} onnewgame={backToSetup}
+      onrules={() => { showRules = true; }} />
   </div>
 {/if}
+
+<RulesDialog open={showRules}
+  boardSize={selected.board_size} maxWalls={selected.max_walls} maxSteps={selected.max_steps}
+  onclose={() => { showRules = false; }} />
 
 <style>
   .layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }

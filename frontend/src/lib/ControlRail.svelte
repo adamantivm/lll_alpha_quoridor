@@ -2,7 +2,7 @@
   import type { ModelEntry } from "./models";
   import type { StateView } from "./types";
   type Params = { mctsN: number; cPuct: number; leafParallelism: number; virtualLoss: number };
-  let { view, thinking, progress, selected, params, humanPlayer, onundo, onnewgame }: {
+  let { view, thinking, progress, selected, params, humanPlayer, onundo, onnewgame, onrules }: {
     view: StateView | null;
     thinking: boolean;
     progress: { done: number; total: number } | null;
@@ -11,6 +11,7 @@
     humanPlayer: number;
     onundo: () => void;
     onnewgame: () => void;
+    onrules: () => void;
   } = $props();
   const pct = $derived(progress && progress.total ? Math.round((100 * progress.done) / progress.total) : 0);
 </script>
@@ -49,6 +50,9 @@
     <div>You play {humanPlayer === 0 ? "first" : "second"}</div>
     <div>{params.mctsN} sims · c_puct {params.cPuct} · leaf {params.leafParallelism}</div>
   </div>
+  <!-- Reachable mid-game on purpose: the jump and wall rules are exactly the
+       ones a new player looks up while staring at a position. -->
+  <button onclick={onrules}>How to play</button>
 </div>
 
 <style>
