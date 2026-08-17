@@ -68,8 +68,6 @@ async function aiMoveIfNeeded(view: StateView): Promise<StateView> {
 
 self.onmessage = async (e: MessageEvent) => {
   const m = e.data;
-  // Param edits are safe any time and don't touch the game.
-  if (m.type === "setParams") { params = m.params; return; }
   if (busy) return;
   busy = true;
   try {

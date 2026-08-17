@@ -99,13 +99,14 @@ then `(N-1)²` horizontal ones.
 
 ### The nick
 
-`nick` is the player's chosen name. Nothing in the UI asks for one yet, so every
-record currently says `unknown`; the field exists so the change that does ask
-only has to fill it in. It is deliberately forgiving — absent, blank or
-over-long values fall back or get trimmed instead of costing us the game record,
-and control characters are stripped so a nick stays one printable line. It is
-also updatable, unlike the rest of the setup fields: a name chosen part-way
-through a game attaches to that game, not just the next one.
+`nick` is the player's chosen name, asked for on the setup screen before a game
+starts and remembered in the browser for the next visit. It is optional, and a
+player who leaves it blank is recorded as `unknown`. Validation is deliberately
+forgiving — absent, blank or over-long values fall back or get trimmed instead
+of costing us the game record, and control characters are stripped so a nick
+stays one printable line. It is also updatable, unlike the rest of the setup
+fields: a name chosen part-way through a game attaches to that game, not just
+the next one.
 
 ### Changing the schema
 
@@ -145,7 +146,7 @@ SELECT move_count, count(*) FROM game WHERE status <> 'finished' GROUP BY 1 ORDE
 -- everything needed to replay one game
 SELECT board_size, max_walls, max_steps, human_player, moves FROM game WHERE game_id = '...';
 
--- how each player is doing, once the UI asks for a nick
+-- how each player is doing
 SELECT nick, count(*) n, round(avg(outcome = 'human_win'), 3) win_rate
 FROM game WHERE status = 'finished' GROUP BY 1 ORDER BY n DESC;
 ```
