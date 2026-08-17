@@ -95,6 +95,12 @@
   <WebGpuBanner status={gpu} />
 {/if}
 
+<nav class="nav">
+  <!-- Every game played here is recorded (see lib/stats.ts); this is where they
+       can be looked at and replayed. -->
+  <a href="./stats.html">Games &amp; replays →</a>
+</nav>
+
 <div class="layout">
   <div>
     {#if error}<p class="err">Error: {error}</p>{/if}
@@ -122,6 +128,8 @@
 
 <style>
   .layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+  .nav { margin-bottom: 8px; font-size: 0.85rem; }
+  .nav a { color: #b45309; }
   .err { color: #c0392b; }
   .status {
     font-weight: 600;

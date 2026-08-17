@@ -23,10 +23,20 @@ function walk(dir) {
   return out;
 }
 
-// 1. index.html must not reference assets from the site root.
-const html = readFileSync(join(dist, "index.html"), "utf8");
-for (const m of html.matchAll(/(src|href)="\/[^/]/g)) {
-  failures.push(`dist/index.html has a root-absolute ${m[1]}: ${m[0]}`);
+// 1. No page may reference assets from the site root. Every entry is checked:
+//    a second page is exactly where a root-absolute URL goes unnoticed, since
+//    the first one still works.
+for (const page of ["index.html", "stats.html"]) {
+  let html;
+  try {
+    html = readFileSync(join(dist, page), "utf8");
+  } catch {
+    failures.push(`dist/${page} is missing -- check build.rollupOptions.input`);
+    continue;
+  }
+  for (const m of html.matchAll(/(src|href)="\/[^/]/g)) {
+    failures.push(`dist/${page} has a root-absolute ${m[1]}: ${m[0]}`);
+  }
 }
 
 // 2. Every model directory's meta.json must be paired with a model.onnx,
