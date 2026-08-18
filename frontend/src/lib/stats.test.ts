@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_NICK,
+  MAX_NICK_LENGTH,
   createStatsReporter,
   diffMoves,
   getClientId,
+  loadNick,
   outcomeFor,
+  saveNick,
   type GameMeta,
   type ReporterOptions,
 } from "./stats";
@@ -144,7 +147,6 @@ describe("createStatsReporter", () => {
   });
 
   it("reads the nick at send time, so one chosen mid-game lands on it", () => {
-    // Nothing asks for a nick yet; this is the seam the UI change plugs into.
     let nick = DEFAULT_NICK;
     const { reporter, sent } = setup({ nick: () => nick });
     reporter.startGame(META);
@@ -278,19 +280,36 @@ describe("createStatsReporter", () => {
   });
 });
 
+// Shared by the two storage-backed helpers below.
+let store: Record<string, string>;
+const storage = {
+  getItem: (k: string) => store[k] ?? null,
+  setItem: (k: string, v: string) => {
+    store[k] = v;
+  },
+  removeItem: (k: string) => {
+    delete store[k];
+  },
+} as Storage;
+
+/** Safari in private mode, and anything else that refuses to persist. */
+const hostileStorage = {
+  getItem() {
+    throw new Error("private mode");
+  },
+  setItem() {
+    throw new Error("private mode");
+  },
+  removeItem() {
+    throw new Error("private mode");
+  },
+} as unknown as Storage;
+
+beforeEach(() => {
+  store = {};
+});
+
 describe("getClientId", () => {
-  let store: Record<string, string>;
-  const storage = {
-    getItem: (k: string) => store[k] ?? null,
-    setItem: (k: string, v: string) => {
-      store[k] = v;
-    },
-  } as Storage;
-
-  beforeEach(() => {
-    store = {};
-  });
-
   it("mints an id once and reuses it", () => {
     let n = 0;
     const first = getClientId(storage, () => `id-${++n}`);
@@ -300,14 +319,33 @@ describe("getClientId", () => {
   });
 
   it("falls back to a throwaway id when storage is unavailable", () => {
-    const hostile = {
-      getItem() {
-        throw new Error("private mode");
-      },
-      setItem() {
-        throw new Error("private mode");
-      },
-    } as unknown as Storage;
-    expect(getClientId(hostile, () => "fallback")).toBe("fallback");
+    expect(getClientId(hostileStorage, () => "fallback")).toBe("fallback");
+  });
+});
+
+describe("nick storage", () => {
+  it("remembers a nick across visits", () => {
+    saveNick("Ada", storage);
+    expect(loadNick(storage)).toBe("Ada");
+  });
+
+  it("reports no stored nick as blank, which the reporter reads as anonymous", () => {
+    expect(loadNick(storage)).toBe("");
+  });
+
+  it("trims and truncates on the way in, matching what the worker would store", () => {
+    saveNick(`  ${"x".repeat(MAX_NICK_LENGTH + 10)}  `, storage);
+    expect(loadNick(storage)).toBe("x".repeat(MAX_NICK_LENGTH));
+  });
+
+  it("clears the stored nick when the player blanks it", () => {
+    saveNick("Ada", storage);
+    saveNick("   ", storage);
+    expect(loadNick(storage)).toBe("");
+  });
+
+  it("survives storage that throws", () => {
+    expect(() => saveNick("Ada", hostileStorage)).not.toThrow();
+    expect(loadNick(hostileStorage)).toBe("");
   });
 });

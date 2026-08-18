@@ -29,5 +29,4 @@ export class AiClient {
 
   move(index: number) { this.worker.postMessage({ type: "move", index }); }
   undo(count: number) { this.worker.postMessage({ type: "undo", count }); }
-  setParams(params: Params) { this.worker.postMessage({ type: "setParams", params: { ...params } }); }
 }

@@ -1,22 +1,31 @@
 <script lang="ts">
   import Board from "./lib/Board.svelte";
   import ControlRail from "./lib/ControlRail.svelte";
-  import ConfigDrawer from "./lib/ConfigDrawer.svelte";
+  import RulesDialog from "./lib/RulesDialog.svelte";
+  import SetupScreen from "./lib/SetupScreen.svelte";
   import WebGpuBanner from "./lib/WebGpuBanner.svelte";
   import { AiClient } from "./lib/aiClient";
   import { checkWebGpu, type WebGpuStatus } from "./lib/webgpu";
   import { MODELS, modelUrl, ortBase, pickDefault, type ModelEntry } from "./lib/models";
+  import { loadNick, saveNick } from "./lib/stats";
   import { createAppReporter } from "./lib/statsClient";
   import type { StateView } from "./lib/types";
 
   const initial = pickDefault(MODELS);
 
+  // The setup screen owns everything above; once a game is running none of it
+  // can change, so the AI the game started against is the AI it ends against.
+  let started = $state(false);
   let selected = $state<ModelEntry>(initial);
   let view = $state<StateView | null>(null);
   let thinking = $state(false);
   let progress = $state<{ done: number; total: number } | null>(null);
   let error = $state<string | null>(null);
   let humanPlayer = $state(0);
+  let nick = $state(loadNick());
+  // One dialog for both screens: the rules do not change once a game starts,
+  // and a mid-game reader wants the same text a first-time visitor does.
+  let showRules = $state(false);
   let params = $state({
     mctsN: initial.defaults.mcts_n,
     cPuct: initial.defaults.mcts_c_puct,
@@ -32,7 +41,7 @@
   // Anonymous game records, for win rates and replays. Never affects play:
   // every write is fire-and-forget, and it does nothing at all unless the
   // build was given a stats endpoint. See lib/stats.ts and stats-worker/.
-  const stats = createAppReporter(() => gpu?.ok ?? null);
+  const stats = createAppReporter({ webgpuOk: () => gpu?.ok ?? null, nick: () => nick });
 
   const ai = new AiClient();
   ai.onState = (v, t) => {
@@ -52,14 +61,13 @@
     () => { gpu = { ok: true }; },
   );
 
-  // Models are known at build time, so there is no loading state to wait for.
-  newGame();
-
-  function newGame() {
-    error = null; thinking = true; progress = null;
-    // Starting a new game is how a player walks away from the current one --
-    // usually once the result is obvious, which is worth knowing.
-    stats.abandonGame();
+  function startGame() {
+    // The setup screen disables its button without one; this keeps the rule at
+    // the point that acts on it rather than only in the markup.
+    if (!nick.trim()) return;
+    saveNick(nick);
+    started = true;
+    error = null; thinking = true; progress = null; view = null;
     stats.startGame({
       modelLabel: selected.label, modelId: selected.id,
       boardSize: selected.board_size, maxWalls: selected.max_walls,
@@ -74,8 +82,17 @@
     });
   }
 
-  // Switching models can change the board, so it has to restart the game
-  // rather than swap the network under a position that may not be legal.
+  // Back to the setup screen, keeping the choices that got us here. Walking
+  // away mid-game is worth recording: people tend to do it exactly when the
+  // result stops being in doubt.
+  function backToSetup() {
+    stats.abandonGame();
+    started = false;
+    view = null; thinking = false; progress = null; error = null;
+  }
+
+  // Each model carries its own board size and tuned search defaults, so
+  // picking one replaces the parameters rather than keeping the old ones.
   function selectModel(entry: ModelEntry) {
     if (entry.id === selected.id) return;
     selected = entry;
@@ -85,7 +102,6 @@
       leafParallelism: entry.defaults.leaf_parallelism,
       virtualLoss: entry.defaults.virtual_loss,
     };
-    newGame();
   }
 
   function act(index: number) { thinking = true; ai.move(index); }
@@ -101,30 +117,42 @@
   <a href="./stats.html">Games &amp; replays →</a>
 </nav>
 
-<div class="layout">
-  <div>
-    {#if error}<p class="err">Error: {error}</p>{/if}
-    {#if view}
-      <div class="status" class:thinking>
-        {#if view.winner != null}
-          {view.winner === view.human_player ? "You won! 🎉" : "AI won"}
-        {:else if thinking}
-          <span class="dot"></span> AI is thinking…{#if progress} {progress.done}/{progress.total} sims{/if}
-        {:else}
-          Your move — you are blue, at the bottom, moving up
-        {/if}
-      </div>
-      <Board {view} disabled={!awaitingHuman} onaction={act} />
-    {:else}
-      <p>Loading…</p>
-    {/if}
-  </div>
-  <ControlRail {view} {thinking} {progress} onundo={() => ai.undo(2)} onnewgame={newGame} />
-  <ConfigDrawer models={MODELS} {selected} {params} {humanPlayer}
+{#if !started}
+  <SetupScreen models={MODELS} {selected} {params} {humanPlayer} {nick}
     onmodel={selectModel}
-    onparams={(p) => { params = p; ai.setParams(p); }}
-    onhumanplayer={(p) => { humanPlayer = p; }} />
-</div>
+    onparams={(p) => { params = p; }}
+    onhumanplayer={(p) => { humanPlayer = p; }}
+    onnick={(n) => { nick = n; }}
+    onstart={startGame}
+    onrules={() => { showRules = true; }} />
+{:else}
+  <div class="layout">
+    <div>
+      {#if error}<p class="err">Error: {error}</p>{/if}
+      {#if view}
+        <div class="status" class:thinking>
+          {#if view.winner != null}
+            {view.winner === view.human_player ? "You won! 🎉" : "AI won"}
+          {:else if thinking}
+            <span class="dot"></span> AI is thinking…{#if progress} {progress.done}/{progress.total} sims{/if}
+          {:else}
+            Your move — you are blue, at the bottom, moving up
+          {/if}
+        </div>
+        <Board {view} disabled={!awaitingHuman} onaction={act} />
+      {:else}
+        <p>Loading…</p>
+      {/if}
+    </div>
+    <ControlRail {view} {thinking} {progress} {selected} {params} {humanPlayer}
+      onundo={() => ai.undo(2)} onnewgame={backToSetup}
+      onrules={() => { showRules = true; }} />
+  </div>
+{/if}
+
+<RulesDialog open={showRules}
+  boardSize={selected.board_size} maxWalls={selected.max_walls} maxSteps={selected.max_steps}
+  onclose={() => { showRules = false; }} />
 
 <style>
   .layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }

@@ -16,13 +16,18 @@ import type { StateView } from "./types";
 export const STATS_SCHEMA_VERSION = 1;
 
 /**
- * What a player is called until something asks them. Nothing does yet -- the UI
- * for choosing a nick is a separate change, and this is the value it replaces.
- * Mirrored in stats-worker/src/record.ts, which also defaults to it.
+ * What a player is called when we do not have a name for them. The setup screen
+ * requires one, so this covers older records and anything that reaches the
+ * worker without one. Mirrored in stats-worker/src/record.ts.
  */
 export const DEFAULT_NICK = "unknown";
 
+/** Longest nick we send. Mirrors MAX_NICK_LENGTH in stats-worker/src/record.ts,
+ *  which truncates anything longer rather than rejecting the game. */
+export const MAX_NICK_LENGTH = 40;
+
 const CLIENT_ID_KEY = "quoridor.stats.client_id";
+const NICK_KEY = "quoridor.stats.nick";
 
 /** Body content type. text/plain keeps each write a CORS *simple* request,
  *  which skips the preflight round trip -- worth having when we write once per
@@ -74,7 +79,7 @@ export interface ReporterOptions {
   /**
    * The player's name, read at send time for the same reason: a nick chosen
    * part-way through should land on the game it was chosen during, not only on
-   * the next one. Defaults to DEFAULT_NICK while nothing asks for it.
+   * the next one. Defaults to DEFAULT_NICK when the player leaves it blank.
    */
   nick?: () => string;
   fetchImpl?: typeof fetch;
@@ -140,6 +145,31 @@ export function getClientId(storage?: Storage, newId: () => string = randomId): 
     return fresh;
   } catch {
     return newId();
+  }
+}
+
+/** The nick this browser last played under, or "" if it has never been set.
+ *  Same storage caveats as getClientId: absent or throwing storage just means
+ *  the player types their name again. */
+export function loadNick(storage?: Storage): string {
+  try {
+    const store = storage ?? globalThis.localStorage;
+    return store?.getItem(NICK_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** Remember the nick for next time. Blank clears it, so a player who wants to go
+ *  back to anonymous is not stuck with a name the next visit re-fills. */
+export function saveNick(nick: string, storage?: Storage): void {
+  try {
+    const store = storage ?? globalThis.localStorage;
+    const trimmed = nick.trim().slice(0, MAX_NICK_LENGTH);
+    if (trimmed) store?.setItem(NICK_KEY, trimmed);
+    else store?.removeItem(NICK_KEY);
+  } catch {
+    // Not being able to remember a name is not worth breaking a game over.
   }
 }
 

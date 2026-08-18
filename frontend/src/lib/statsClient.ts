@@ -7,11 +7,16 @@
 import { DEFAULT_NICK, createStatsReporter, getClientId, type StatsReporter } from "./stats";
 
 /**
- * `webgpuOk` is a getter because the probe in webgpu.ts is async: the first
- * game starts before it answers, and the record is rewritten on every move
- * anyway, so a live read gets the right value onto all but the first write.
+ * Both fields are getters, read at send time. `webgpuOk` because the probe in
+ * webgpu.ts is async and may not have answered when a game starts; `nick`
+ * because the player can change their name between games without the reporter
+ * being rebuilt.
  */
-export function createAppReporter(webgpuOk: () => boolean | null): StatsReporter {
+export function createAppReporter(sources: {
+  webgpuOk: () => boolean | null;
+  nick: () => string;
+}): StatsReporter {
+  const { webgpuOk, nick } = sources;
   const reporter = createStatsReporter({
     // Set by the Pages workflow. Empty in dev and in CI, which disables
     // reporting entirely -- local play never writes to the shared database.
@@ -19,9 +24,10 @@ export function createAppReporter(webgpuOk: () => boolean | null): StatsReporter
     appVersion: __APP_VERSION__,
     clientId: getClientId(),
     webgpuOk,
-    // Where the nick UI will hook in: point this at whatever holds the player's
-    // chosen name and every write, including mid-game ones, picks it up.
-    nick: () => DEFAULT_NICK,
+    // The setup screen will not start a game without a name, so the fallback is
+    // a floor rather than a path anyone takes -- and it matches what the worker
+    // would store if a blank one ever reached it.
+    nick: () => nick().trim() || DEFAULT_NICK,
     beaconImpl:
       typeof navigator !== "undefined" && navigator.sendBeacon
         ? navigator.sendBeacon.bind(navigator)

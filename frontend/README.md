@@ -21,7 +21,7 @@ npm --prefix frontend run check:build # post-build assertions
 WebGPU is used when available and is much faster. When it isn't, the app
 falls back to onnxruntime's wasm CPU backend and shows a banner explaining
 that the AI will think more slowly — it stays playable either way. Lowering
-*MCTS sims* in the config panel trades strength for speed on the CPU path.
+*MCTS sims* on the setup screen trades strength for speed on the CPU path.
 
 The host must serve `dist/ort/*.mjs` with a JavaScript MIME type: onnxruntime
 loads it with a dynamic `import()`, so a wrong content type fails as a
@@ -148,18 +148,25 @@ frontend/models/b5w2-mv1/
 ```
 
 The list is globbed at build time, so adding a model is "drop in a directory
-and rebuild" — there is no index to keep in sync. Selecting a model with a
-different board size starts a new game on that board.
+and rebuild" — there is no index to keep in sync. The model is picked on the
+setup screen, and picking one also loads its tuned search defaults.
 
 ## How it fits together
 
 ```
 Browser
   main thread (Svelte)  ── postMessage ─▶  Web Worker (ai.worker.ts)
-    board, progress bar,  ◀─ state/progress ─   quoridor-wasm  (game + MCTS)
-    undo, config drawer                          onnxruntime-web (WebGPU/wasm) ── eval_batch
+    setup screen, board,  ◀─ state/progress ─   quoridor-wasm  (game + MCTS)
+    progress bar, undo                           onnxruntime-web (WebGPU/wasm) ── eval_batch
 Static files:  index.html · assets/* · models/<id>/model.onnx · ort/*.{wasm,mjs}
 ```
+
+The setup screen (nickname, model, who plays first, search parameters) is what
+you see before a game; pressing *Start game* is what sends `newGame` to the
+worker. Everything it collects is fixed for the whole game — changing the
+opponent's strength mid-game would make both the game and its recorded row
+meaningless — so *New game* returns to that screen rather than restarting in
+place.
 
 ## Tests
 ```
