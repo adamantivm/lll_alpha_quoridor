@@ -10,6 +10,10 @@ export default defineConfig({
   // Which build a recorded game came from. GITHUB_SHA is set by the Pages
   // workflow; local builds report "dev" so their games are easy to exclude.
   define: { __APP_VERSION__: JSON.stringify(process.env.GITHUB_SHA ?? "dev") },
+  // Two pages: the game, and the stats/replay view of the games D1 has
+  // collected. Both flat at the site root, so a relative base resolves assets
+  // from the same ./assets/ for either document.
+  build: { rollupOptions: { input: { main: "index.html", stats: "stats.html" } } },
   plugins: [
     svelte(),
     viteStaticCopy({

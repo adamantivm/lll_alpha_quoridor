@@ -1,7 +1,8 @@
 /**
- * Exercises UPSERT_SQL against a real SQLite engine, using the very schema.sql
- * that gets applied to D1. The ordering guard is a WHERE clause, so asserting
- * on anything less than a real engine would only be testing a paraphrase.
+ * Exercises the statements in sql.ts against a real SQLite engine, using the
+ * very schema.sql that gets applied to D1. The ordering guard and the
+ * pagination predicate are both WHERE clauses, so asserting on anything less
+ * than a real engine would only be testing a paraphrase.
  *
  * node:sqlite landed in Node 22; on older runtimes these tests skip rather than
  * fail, and the wrangler dev walkthrough in README.md covers the same ground.
@@ -11,11 +12,27 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it } from "vitest";
 import { validate, type GameRecord } from "./record";
-import { UPSERT_SQL, bindValues } from "./sql";
+import {
+  DEFAULT_LIMIT,
+  GAME_SQL,
+  MAX_LIMIT,
+  SUMMARY_COLUMNS,
+  UPSERT_SQL,
+  bindValues,
+  encodeCursor,
+  listStatement,
+  parseListQuery,
+  rowToDetail,
+  rowToSummary,
+} from "./sql";
 
 interface SqliteDb {
   exec(sql: string): void;
-  prepare(sql: string): { run(...params: unknown[]): unknown; get(...params: unknown[]): Row };
+  prepare(sql: string): {
+    run(...params: unknown[]): unknown;
+    get(...params: unknown[]): Row;
+    all(...params: unknown[]): Record<string, string | number | null>[];
+  };
 }
 type Row = Record<string, string | number | null> | undefined;
 
@@ -154,5 +171,152 @@ describe.skipIf(!DatabaseSync)("UPSERT_SQL", () => {
     const row = read()!;
     expect(row.outcome).toBe("draw");
     expect(row.winner).toBeNull();
+  });
+});
+
+describe("parseListQuery", () => {
+  function q(search: string) {
+    return parseListQuery(new URLSearchParams(search));
+  }
+
+  it("defaults to the newest page", () => {
+    const r = q("");
+    expect(r).toEqual({ ok: true, query: { limit: DEFAULT_LIMIT, cursor: null, status: null } });
+  });
+
+  it("accepts a limit, a status and a cursor", () => {
+    const r = q(`limit=5&status=finished&cursor=${encodeURIComponent("2026-08-13T10:00:00.000Z|g-1")}`);
+    expect(r).toEqual({
+      ok: true,
+      query: {
+        limit: 5,
+        status: "finished",
+        cursor: { started_at: "2026-08-13T10:00:00.000Z", game_id: "g-1" },
+      },
+    });
+  });
+
+  // Silently defaulting a bad cursor would leave a paging caller looping over
+  // page one for as long as it kept asking.
+  it("rejects rather than defaults bad input", () => {
+    for (const search of [
+      "limit=0",
+      `limit=${MAX_LIMIT + 1}`,
+      "limit=abc",
+      "limit=1.5",
+      "status=whatever",
+      "cursor=nopipe",
+      "cursor=|g-1",
+      "cursor=2026-08-13T10:00:00.000Z|",
+    ]) {
+      expect(q(search).ok, search).toBe(false);
+    }
+  });
+
+  it("keeps a game id containing the separator whole", () => {
+    const r = q("cursor=2026-08-13T10:00:00.000Z|a|b");
+    expect(r.ok && r.query.cursor).toEqual({
+      started_at: "2026-08-13T10:00:00.000Z",
+      game_id: "a|b",
+    });
+  });
+});
+
+describe("SUMMARY_COLUMNS", () => {
+  // The stats page is public. Neither column is needed by any statistic on it,
+  // and shipping either would publish something we only collect server-side.
+  it("does not expose the request metadata", () => {
+    expect(SUMMARY_COLUMNS).not.toContain("ip");
+    expect(SUMMARY_COLUMNS).not.toContain("user_agent");
+  });
+
+  it("names only real columns", () => {
+    for (const col of SUMMARY_COLUMNS) {
+      expect(schema, col).toContain(`  ${col} `);
+    }
+  });
+});
+
+describe.skipIf(!DatabaseSync)("read statements", () => {
+  let db: SqliteDb;
+
+  /** Games in insertion order; started_at is the second argument. */
+  function seed(over: Record<string, unknown>, now: string) {
+    db.prepare(UPSERT_SQL).run(...bindValues(record(over), now, meta));
+  }
+
+  function list(search: string) {
+    const parsed = parseListQuery(new URLSearchParams(search));
+    if (!parsed.ok) throw new Error(parsed.error);
+    const { sql, binds } = listStatement(parsed.query);
+    return db.prepare(sql).all(...binds).map(rowToSummary);
+  }
+
+  beforeEach(() => {
+    db = new DatabaseSync!(":memory:");
+    db.exec(schema);
+    seed({ game_id: "g-old", status: "finished", outcome: "ai_win", winner: 1 }, "2026-08-13T10:00:00.000Z");
+    seed({ game_id: "g-mid" }, "2026-08-13T11:00:00.000Z");
+    // Same millisecond as g-mid: the pair comparison in the cursor is what
+    // keeps one of these two from being skipped.
+    seed({ game_id: "g-dup" }, "2026-08-13T11:00:00.000Z");
+    seed({ game_id: "g-new", status: "abandoned" }, "2026-08-13T12:00:00.000Z");
+  });
+
+  it("lists newest first", () => {
+    expect(list("").map((g) => g.game_id)).toEqual(["g-new", "g-mid", "g-dup", "g-old"]);
+  });
+
+  it("paginates without dropping games that share a timestamp", () => {
+    const seen: string[] = [];
+    let search = "limit=2";
+    for (let page = 0; page < 5; page++) {
+      const rows = list(search);
+      seen.push(...rows.map((g) => g.game_id));
+      if (rows.length < 2) break;
+      search = `limit=2&cursor=${encodeURIComponent(encodeCursor(rows[rows.length - 1]))}`;
+    }
+    expect(seen).toEqual(["g-new", "g-mid", "g-dup", "g-old"]);
+  });
+
+  it("filters by status", () => {
+    expect(list("status=finished").map((g) => g.game_id)).toEqual(["g-old"]);
+    expect(list("status=in_progress").map((g) => g.game_id)).toEqual(["g-mid", "g-dup"]);
+  });
+
+  it("returns no request metadata and no move lists", () => {
+    const parsed = parseListQuery(new URLSearchParams(""));
+    if (!parsed.ok) throw new Error(parsed.error);
+    const { sql, binds } = listStatement(parsed.query);
+    const raw = db.prepare(sql).all(...binds);
+    expect(Object.keys(raw[0]).sort()).toEqual([...SUMMARY_COLUMNS].sort());
+  });
+
+  it("shapes a summary row for the API", () => {
+    const g = list("status=finished")[0];
+    expect(g).toMatchObject({
+      game_id: "g-old",
+      started_at: "2026-08-13T10:00:00.000Z",
+      status: "finished",
+      outcome: "ai_win",
+      winner: 1,
+      move_count: 1,
+      nick: "ada",
+      model_id: "b9w10-v0",
+      // 1 in SQLite, a boolean over the wire.
+      webgpu_ok: true,
+      country: "UY",
+    });
+  });
+
+  it("reads one game with everything needed to replay it", () => {
+    const row = db.prepare(GAME_SQL).get("g-old")!;
+    const detail = rowToDetail(row);
+    expect(detail.moves).toEqual([12]);
+    expect(detail.action_log).toEqual([{ m: 12 }]);
+    expect(detail.board_size).toBe(9);
+    expect(detail.human_player).toBe(0);
+    expect(detail).not.toHaveProperty("ip");
+    expect(db.prepare(GAME_SQL).get("nope")).toBeUndefined();
   });
 });

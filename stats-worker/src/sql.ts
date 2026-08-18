@@ -1,10 +1,11 @@
 /**
- * The single write this service performs. Kept apart from the HTTP handler so
- * the statement can be exercised against a real SQLite engine in tests -- the
- * ordering guard lives in SQL, so testing it any other way would only test a
- * paraphrase of it.
+ * Every SQL statement this service runs, and the pure functions that build and
+ * shape them. Kept apart from the HTTP handler so the statements can be
+ * exercised against a real SQLite engine in tests -- the ordering guard and the
+ * pagination predicate both live in SQL, so testing them any other way would
+ * only test a paraphrase of them.
  */
-import type { GameRecord } from "./record";
+import type { ActionLogEntry, GameOutcome, GameStatus, GameRecord } from "./record";
 
 /**
  * Insert the record, or update the existing row when this write is newer.
@@ -89,4 +90,238 @@ export function bindValues(
     meta.userAgent,
     meta.country,
   ];
+}
+
+// ---------------------------------------------------------------------------
+// Reads: what the stats page fetches.
+// ---------------------------------------------------------------------------
+
+/**
+ * The columns the read API exposes.
+ *
+ * `ip` and `user_agent` are deliberately absent and must stay absent: the stats
+ * page is public, and no statistic on it needs either. `country` stays -- it is
+ * coarse enough to show and interesting for "who plays this".
+ *
+ * `moves` and `action_log` are absent too, but only because they are big: one
+ * game's worth is fetched by GAME_SQL when a game is opened for replay.
+ */
+export const SUMMARY_COLUMNS = [
+  "game_id",
+  "started_at",
+  "updated_at",
+  "status",
+  "outcome",
+  "winner",
+  "move_count",
+  "undo_count",
+  "rev",
+  "duration_ms",
+  "nick",
+  "schema_version",
+  "app_version",
+  "model_label",
+  "model_id",
+  "board_size",
+  "max_walls",
+  "max_steps",
+  "human_player",
+  "mcts_n",
+  "c_puct",
+  "leaf_parallelism",
+  "virtual_loss",
+  "webgpu_ok",
+  "country",
+] as const;
+
+const SUMMARY_SELECT = SUMMARY_COLUMNS.join(", ");
+
+/** One game as the list endpoint returns it. Mirrored in frontend/src/lib/statsApi.ts. */
+export interface GameSummary {
+  game_id: string;
+  started_at: string;
+  updated_at: string;
+  status: GameStatus;
+  outcome: GameOutcome | null;
+  winner: number | null;
+  move_count: number;
+  undo_count: number;
+  rev: number;
+  duration_ms: number;
+  nick: string;
+  schema_version: number;
+  app_version: string | null;
+  model_label: string;
+  model_id: string;
+  board_size: number;
+  max_walls: number;
+  max_steps: number;
+  human_player: number;
+  mcts_n: number;
+  c_puct: number;
+  leaf_parallelism: number;
+  virtual_loss: number;
+  webgpu_ok: boolean | null;
+  country: string | null;
+}
+
+/** A single game, with everything needed to replay it. */
+export interface GameDetail extends GameSummary {
+  moves: number[];
+  action_log: ActionLogEntry[];
+}
+
+/** Everything needed to replay one game. */
+export const GAME_SQL = `SELECT ${SUMMARY_SELECT}, moves, action_log FROM game WHERE game_id = ?`;
+
+/** Page size when the caller does not ask, and the most we will ever return. */
+export const DEFAULT_LIMIT = 200;
+export const MAX_LIMIT = 500;
+
+/** Where a page of the list ended. Both halves are needed -- see listStatement(). */
+export interface ListCursor {
+  started_at: string;
+  game_id: string;
+}
+
+export interface ListQuery {
+  limit: number;
+  cursor: ListCursor | null;
+  status: GameStatus | null;
+}
+
+const STATUSES: readonly string[] = ["in_progress", "finished", "abandoned"];
+
+/** `started_at` is a server ISO timestamp, so it never contains the separator. */
+export function encodeCursor(row: ListCursor): string {
+  return `${row.started_at}|${row.game_id}`;
+}
+
+/**
+ * Read the list endpoint's query string, or explain what is wrong with it.
+ * A bad value is a 400 rather than a silent default: a caller paginating with a
+ * cursor we cannot parse would otherwise loop over page one forever.
+ */
+export function parseListQuery(
+  params: URLSearchParams,
+): { ok: true; query: ListQuery } | { ok: false; error: string } {
+  let limit = DEFAULT_LIMIT;
+  const rawLimit = params.get("limit");
+  if (rawLimit !== null) {
+    const n = Number(rawLimit);
+    if (!Number.isInteger(n) || n < 1 || n > MAX_LIMIT) {
+      return { ok: false, error: `limit must be an integer in [1, ${MAX_LIMIT}]` };
+    }
+    limit = n;
+  }
+
+  let status: GameStatus | null = null;
+  const rawStatus = params.get("status");
+  if (rawStatus !== null) {
+    if (!STATUSES.includes(rawStatus)) {
+      return { ok: false, error: `status must be one of ${STATUSES.join("|")}` };
+    }
+    status = rawStatus as GameStatus;
+  }
+
+  let cursor: ListCursor | null = null;
+  const rawCursor = params.get("cursor");
+  if (rawCursor !== null) {
+    // Split on the FIRST separator: started_at cannot contain one, but a
+    // game_id came from a client and in principle could.
+    const at = rawCursor.indexOf("|");
+    const started_at = at === -1 ? "" : rawCursor.slice(0, at);
+    const game_id = at === -1 ? "" : rawCursor.slice(at + 1);
+    if (!started_at || started_at.length > 40 || !game_id || game_id.length > 64) {
+      return { ok: false, error: "cursor is not a valid page cursor" };
+    }
+    cursor = { started_at, game_id };
+  }
+
+  return { ok: true, query: { limit, cursor, status } };
+}
+
+/**
+ * Build the list statement for a query.
+ *
+ * Newest first, and paginated by keyset rather than OFFSET so a game recorded
+ * while someone is paging cannot shift rows onto a page that was already read.
+ * The cursor compares the (started_at, game_id) pair because started_at is a
+ * server timestamp with no uniqueness guarantee -- two games started in the
+ * same millisecond with a plain `started_at <` would hide one of them.
+ */
+export function listStatement(q: ListQuery): { sql: string; binds: (string | number)[] } {
+  const where: string[] = [];
+  const binds: (string | number)[] = [];
+  if (q.status !== null) {
+    where.push("status = ?");
+    binds.push(q.status);
+  }
+  if (q.cursor !== null) {
+    where.push("(started_at < ? OR (started_at = ? AND game_id < ?))");
+    binds.push(q.cursor.started_at, q.cursor.started_at, q.cursor.game_id);
+  }
+  binds.push(q.limit);
+  return {
+    sql:
+      `SELECT ${SUMMARY_SELECT} FROM game` +
+      (where.length ? ` WHERE ${where.join(" AND ")}` : "") +
+      " ORDER BY started_at DESC, game_id DESC LIMIT ?",
+    binds,
+  };
+}
+
+function jsonArray(raw: unknown): unknown[] {
+  if (typeof raw !== "string") return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    // A row we cannot parse is a row we wrote wrong. Serving the rest of it
+    // beats a 500 that hides every other field.
+    return [];
+  }
+}
+
+/**
+ * Shape a row into the API's response object. Written out field by field on
+ * purpose: it normalises SQLite's 1/0 back to a boolean, and it means a column
+ * added to the table is not published by accident.
+ */
+export function rowToSummary(row: Record<string, unknown>): GameSummary {
+  return {
+    game_id: row.game_id as string,
+    started_at: row.started_at as string,
+    updated_at: row.updated_at as string,
+    status: row.status as GameStatus,
+    outcome: (row.outcome ?? null) as GameOutcome | null,
+    winner: (row.winner ?? null) as number | null,
+    move_count: row.move_count as number,
+    undo_count: row.undo_count as number,
+    rev: row.rev as number,
+    duration_ms: row.duration_ms as number,
+    nick: row.nick as string,
+    schema_version: row.schema_version as number,
+    app_version: (row.app_version ?? null) as string | null,
+    model_label: row.model_label as string,
+    model_id: row.model_id as string,
+    board_size: row.board_size as number,
+    max_walls: row.max_walls as number,
+    max_steps: row.max_steps as number,
+    human_player: row.human_player as number,
+    mcts_n: row.mcts_n as number,
+    c_puct: row.c_puct as number,
+    leaf_parallelism: row.leaf_parallelism as number,
+    virtual_loss: row.virtual_loss as number,
+    webgpu_ok: row.webgpu_ok === null || row.webgpu_ok === undefined ? null : !!row.webgpu_ok,
+    country: (row.country ?? null) as string | null,
+  };
+}
+
+export function rowToDetail(row: Record<string, unknown>): GameDetail {
+  return {
+    ...rowToSummary(row),
+    moves: jsonArray(row.moves) as number[],
+    action_log: jsonArray(row.action_log) as ActionLogEntry[],
+  };
 }
