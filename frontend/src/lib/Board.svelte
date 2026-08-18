@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { StateView } from "./types";
-  import { buildBoardGrid, cellKey, type GridCell } from "./boardGrid";
+  import {
+    boardTrackUnits, cellKey, buildBoardGrid,
+    PAWN_UNITS, POST_UNITS, type GridCell,
+  } from "./boardGrid";
 
   let { view, disabled, onaction }: {
     view: StateView; disabled: boolean; onaction: (index: number) => void;
@@ -12,6 +15,9 @@
       i % 2 === 0 ? "var(--pawn-size)" : "var(--post-size)",
     ).join(" "),
   );
+  // The board scales down to fit a narrow viewport; --u is the scale factor,
+  // derived in CSS from this track total. See the .board rule below.
+  const units = $derived(boardTrackUnits(grid.n));
 
   // Cells to tint while previewing the wall under the cursor.
   let hovered = $state(new Set<string>());
@@ -24,7 +30,10 @@
   }
 </script>
 
-<div class="board" style="grid-template-columns:{tracks}; grid-template-rows:{tracks}">
+<div
+  class="board"
+  style="--board-units:{units}; --pawn-size:calc({PAWN_UNITS} * var(--u)); --post-size:calc({POST_UNITS} * var(--u)); grid-template-columns:{tracks}; grid-template-rows:{tracks}"
+>
   {#each grid.cells as cell (cellKey(cell.gr, cell.gc))}
     {@const clickable = cell.legalMoveIndex !== null || cell.wall !== null}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -53,8 +62,16 @@
 
 <style>
   .board {
-    --pawn-size: 54px;
-    --post-size: 14px;
+    /* Scale factor for every track, so a board that would be wider than the
+       screen shrinks to fit one instead of forcing the page to scroll
+       sideways. --board-units (the unitless track total) and the two track
+       sizes are set inline, from the constants in boardGrid.ts.
+
+       --board-chrome is the horizontal space this board may not use: 32px of
+       body padding plus its own 16px below. A board nested in a card of its
+       own overrides it. Clamping at 1px means anything wider than the board's
+       natural size renders exactly as it did before this was fluid. */
+    --u: min(1px, calc((100vw - var(--board-chrome, 48px)) / var(--board-units)));
     display: inline-grid;
     gap: 0;
     padding: 8px;

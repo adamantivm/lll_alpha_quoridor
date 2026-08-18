@@ -56,7 +56,7 @@
 </div>
 
 <style>
-  .rail { display: flex; flex-direction: column; gap: 10px; width: 240px; }
+  .rail { display: flex; flex-direction: column; gap: 10px; width: 240px; max-width: 100%; }
   .card { border: 1px solid #ccc; border-radius: 6px; padding: 8px; }
   .bar { height: 12px; background: #ddd; border-radius: 6px; overflow: hidden; margin: 6px 0; }
   .fill { height: 100%; background: #2a7; }
