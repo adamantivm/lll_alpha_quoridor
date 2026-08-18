@@ -11,6 +11,7 @@
     totals,
     type Filters,
   } from "./lib/aggregate";
+  import { createGameSelector } from "./lib/selectGame";
   import {
     MAX_ROWS,
     fetchAllGames,
@@ -73,19 +74,20 @@
     }
   }
 
-  async function select(gameId: string) {
+  // Clicking through the list faster than the network answers must not leave
+  // an older game on screen: the selector drops everything but the newest.
+  const loadSelection = createGameSelector((gameId) => fetchGame(endpoint, gameId, fetchImpl), {
+    setGame: (g) => (selected = g),
+    setError: (m) => (selectError = m),
+  });
+
+  function select(gameId: string) {
     selectedId = gameId;
-    selected = null;
-    selectError = null;
     // Shareable without reloading, and the back button still leaves the page.
     const url = new URL(location.href);
     url.searchParams.set("game", gameId);
     history.replaceState(null, "", url);
-    try {
-      selected = await fetchGame(endpoint, gameId, fetchImpl);
-    } catch (err) {
-      selectError = `Could not load that game: ${err instanceof Error ? err.message : err}`;
-    }
+    void loadSelection(gameId);
   }
 
   function clearSelection() {
