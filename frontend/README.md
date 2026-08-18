@@ -75,8 +75,30 @@ python3 -m http.server 8080 -d /tmp/pages
 # open http://localhost:8080/lll_alpha_quoridor/
 ```
 
-Dev mode with HMR: `npm --prefix frontend run dev`. Everything the app needs
-is static, so dev is fully functional.
+`npm --prefix frontend run dev` does **not** currently work: Vite's dev server
+serves the models' `meta.json?import` as `application/json`, which fails the
+module MIME check, so the page never renders. Use `run build` + `run preview`.
+
+## Run (look at the games played)
+
+The second page, `stats.html`, shows the games recorded in D1 — win rates
+grouped by model, MCTS sims and c_puct, and a replay of any single game. It
+reads the same endpoint the play page writes to, so a build without
+`VITE_STATS_ENDPOINT` has nothing to show and says so.
+
+```
+VITE_STATS_ENDPOINT=http://localhost:8787/v1/games npm --prefix frontend run build && npm --prefix frontend run preview
+# open http://localhost:4173/stats.html
+```
+
+That URL assumes a local worker (`npx wrangler dev` in `stats-worker/`, whose
+`ALLOWED_ORIGINS` already includes the preview's port). Deployed, the page is at
+<https://adamantivm.github.io/lll_alpha_quoridor/stats.html>, and `?game=<id>`
+links straight to one replay.
+
+Replay runs the stored moves back through the same `quoridor-wasm` engine that
+played them and renders them with the same `Board.svelte`, so it needs no model
+and never loads onnxruntime.
 
 ## Deployment
 

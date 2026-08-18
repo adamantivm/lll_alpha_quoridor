@@ -10,11 +10,15 @@ model with no server-side inference at all.
 **▶ Play it: <https://adamantivm.github.io/lll_alpha_quoridor/>** — runs
 entirely in your browser, no install required.
 
+**📊 Games played: <https://adamantivm.github.io/lll_alpha_quoridor/stats.html>**
+— win rates per model and settings, and a replay of any recorded game.
+
 Games played on that site are recorded — the moves, which model and settings
 were used, and the requesting IP and browser — so we can see how the models do
 against people and replay interesting games. There is no account, but the setup
 screen does ask for a nickname before it will start a game, and that name goes
-on the record. See [stats-worker/](stats-worker/) for the schema and the
+on the record. The stats page above shows everything that is published; the IP
+and browser are not. See [stats-worker/](stats-worker/) for the schema and the
 queries. Running the site locally records nothing.
 
 ## Prerequisites
