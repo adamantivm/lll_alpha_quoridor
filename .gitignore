@@ -57,3 +57,6 @@ game_recording.yaml
 # Written by the devcontainer CLI when it resolves feature digests, so its
 # contents track whichever machine last rebuilt the container.
 .devcontainer/devcontainer-lock.json
+
+# Staged before/after builds for manual checks on a real device.
+.phone-test/

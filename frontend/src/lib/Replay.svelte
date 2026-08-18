@@ -144,7 +144,7 @@
 
   {#if view}
     <div class="body">
-      <div>
+      <div class="board-fit">
         <Board {view} disabled={true} onaction={() => {}} />
         <div class="controls">
           <button onclick={() => step(-lastPly)} disabled={ply === 0} title="First position">⏮</button>
@@ -207,6 +207,9 @@
 
 <style>
   .replay { border: 1px solid #c9b07a; border-radius: 8px; padding: 12px; background: #fffdf7; }
+  /* Widen what the nested board treats as unusable width: the page's own
+     padding, plus this card's border and padding, plus the board's padding. */
+  .board-fit { --board-chrome: 80px; }
   .head { display: flex; gap: 20px; justify-content: space-between; flex-wrap: wrap; }
   .params {
     display: grid;

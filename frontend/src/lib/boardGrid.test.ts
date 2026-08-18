@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBoardGrid, cellKey } from "./boardGrid";
+import { boardTrackUnits, PAWN_UNITS, POST_UNITS, buildBoardGrid, cellKey } from "./boardGrid";
 import type { StateView } from "./types";
 
 // Server coords: player 0 starts at row 0 (top), player 1 at row N-1 (bottom).
@@ -73,5 +73,17 @@ describe("buildBoardGrid", () => {
     expect(
       buildBoardGrid(view({ legal_actions: acts, current_player: 1 }), true).cells.every((c) => c.legalMoveIndex === null),
     ).toBe(true);
+  });
+});
+
+describe("boardTrackUnits", () => {
+  it("counts n pawn tracks and n-1 post tracks", () => {
+    expect(boardTrackUnits(5)).toBe(5 * PAWN_UNITS + 4 * POST_UNITS);
+  });
+
+  // The 9x9 board is the one that overflowed a phone screen: 598 units plus the
+  // board's own 16px of padding is 614px, against a viewport of about 390.
+  it("gives the 9x9 board the width that did not fit", () => {
+    expect(boardTrackUnits(9)).toBe(598);
   });
 });

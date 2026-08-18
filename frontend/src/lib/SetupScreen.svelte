@@ -111,6 +111,9 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
+    /* border-box so the cap includes the padding below -- otherwise the card
+       is 460px wide and overflows a phone screen just like the board did. */
+    box-sizing: border-box;
     max-width: 420px;
     margin: 0 auto;
     padding: 20px;
