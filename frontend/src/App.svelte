@@ -6,8 +6,9 @@
   import WebGpuBanner from "./lib/WebGpuBanner.svelte";
   import { AiClient } from "./lib/aiClient";
   import { checkWebGpu, type WebGpuStatus } from "./lib/webgpu";
-  import { MODELS, modelUrl, ortBase, pickDefault, type ModelEntry } from "./lib/models";
-  import { loadNick, saveNick } from "./lib/stats";
+  import { MODELS, pickDefault, type ModelEntry } from "./lib/models";
+  import { awaitingHuman, createGameSession } from "./lib/session";
+  import { loadNick } from "./lib/stats";
   import { createAppReporter } from "./lib/statsClient";
   import type { StateView } from "./lib/types";
 
@@ -34,9 +35,7 @@
   });
 
   // True only when the human may act: their turn, game live, AI not working.
-  const awaitingHuman = $derived(
-    !!view && view.winner == null && view.current_player === view.human_player && !thinking,
-  );
+  const humanToPlay = $derived(awaitingHuman(view, thinking));
 
   // Anonymous game records, for win rates and replays. Never affects play:
   // every write is fire-and-forget, and it does nothing at all unless the
@@ -44,12 +43,15 @@
   const stats = createAppReporter({ webgpuOk: () => gpu?.ok ?? null, nick: () => nick });
 
   const ai = new AiClient();
+  // Everything about the shape of a game -- what gets sent, and what a state or
+  // an error means for the record -- is in lib/session.ts, where it is tested.
+  const session = createGameSession({ ai, stats });
   ai.onState = (v, t) => {
     view = v; thinking = t; if (!t) progress = null;
-    stats.recordView(v);
+    session.handleState(v);
   };
   ai.onProgress = (done, total) => { thinking = true; progress = { done, total }; };
-  ai.onError = (m) => { error = m; thinking = false; };
+  ai.onError = (m) => { error = m; thinking = false; session.handleError(); };
 
   // The check gates nothing: the worker asks for ["webgpu", "wasm"], so
   // onnxruntime falls back on its own. This only decides whether to warn.
@@ -62,31 +64,18 @@
   );
 
   function startGame() {
-    // The setup screen disables its button without one; this keeps the rule at
-    // the point that acts on it rather than only in the markup.
-    if (!nick.trim()) return;
-    saveNick(nick);
+    // Refused without a name, which is also why the setup screen's button is
+    // disabled until there is one.
+    if (!session.start({ model: selected, params, humanPlayer, nick })) return;
     started = true;
     error = null; thinking = true; progress = null; view = null;
-    stats.startGame({
-      modelLabel: selected.label, modelId: selected.id,
-      boardSize: selected.board_size, maxWalls: selected.max_walls,
-      maxSteps: selected.max_steps, humanPlayer,
-      mctsN: params.mctsN, cPuct: params.cPuct,
-      leafParallelism: params.leafParallelism, virtualLoss: params.virtualLoss,
-    });
-    ai.newGame({
-      modelUrl: modelUrl(selected), ortBase: ortBase(),
-      boardSize: selected.board_size, maxWalls: selected.max_walls,
-      maxSteps: selected.max_steps, humanPlayer, params,
-    });
   }
 
   // Back to the setup screen, keeping the choices that got us here. Walking
   // away mid-game is worth recording: people tend to do it exactly when the
   // result stops being in doubt.
   function backToSetup() {
-    stats.abandonGame();
+    session.leave();
     started = false;
     view = null; thinking = false; progress = null; error = null;
   }
@@ -139,7 +128,7 @@
             Your move — you are blue, at the bottom, moving up
           {/if}
         </div>
-        <Board {view} disabled={!awaitingHuman} onaction={act} />
+        <Board {view} disabled={!humanToPlay} onaction={act} />
       {:else}
         <p>Loading…</p>
       {/if}

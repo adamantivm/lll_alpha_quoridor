@@ -8,7 +8,12 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
 
-/** Serves `total` synthetic games, paging exactly as the worker does. */
+/**
+ * Serves `total` synthetic games, paging exactly as the worker does -- including
+ * the part that matters here: the worker cannot see past the page it just read,
+ * so it returns a cursor whenever a page comes back full, even if that page was
+ * the last one.
+ */
 function fakeApi(total: number) {
   const urls: string[] = [];
   const all = Array.from({ length: total }, (_, i) => ({
@@ -26,7 +31,7 @@ function fakeApi(total: number) {
       const from = cursor === null ? 0 : all.findIndex((g) => g.game_id === cursor.split("|")[1]) + 1;
       const games = all.slice(from, from + limit);
       const next =
-        games.length === limit && from + limit < all.length
+        games.length === limit
           ? `${games[games.length - 1].started_at}|${games[games.length - 1].game_id}`
           : null;
       return jsonResponse({ games, next_cursor: next });
@@ -62,10 +67,34 @@ describe("fetchAllGames", () => {
     const { games, truncated } = await fetchAllGames(ENDPOINT, api.fetchImpl, 4);
     expect(games).toHaveLength(4);
     expect(truncated).toBe(true);
-    // Never asks for more rows than are left in the budget.
-    for (const url of api.urls) {
+    // Never asks for more rows than are left in the budget -- except the probe
+    // for row 5, which is one row and is not kept.
+    for (const url of api.urls.slice(0, -1)) {
       expect(Number(new URL(url).searchParams.get("limit"))).toBeLessThanOrEqual(4);
     }
+  });
+
+  // The worker hands back a cursor for any full page, so a database holding
+  // exactly the cap's worth of games used to be reported as cut off.
+  it("is not truncated when the database holds exactly the cap", async () => {
+    const api = fakeApi(4);
+    const { games, truncated } = await fetchAllGames(ENDPOINT, api.fetchImpl, 4);
+    expect(games).toHaveLength(4);
+    expect(truncated).toBe(false);
+  });
+
+  it("asks for one row, once, to tell those two cases apart", async () => {
+    const api = fakeApi(4);
+    await fetchAllGames(ENDPOINT, api.fetchImpl, 4);
+    const probes = api.urls.filter((u) => new URL(u).searchParams.get("limit") === "1");
+    expect(probes).toHaveLength(1);
+  });
+
+  it("does not probe at all when the cap is never reached", async () => {
+    const api = fakeApi(3);
+    const { truncated } = await fetchAllGames(ENDPOINT, api.fetchImpl, 4);
+    expect(truncated).toBe(false);
+    expect(api.urls.filter((u) => new URL(u).searchParams.get("limit") === "1")).toHaveLength(0);
   });
 
   it("asks for whole pages when the budget allows", async () => {
