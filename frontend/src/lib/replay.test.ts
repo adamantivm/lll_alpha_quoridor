@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildReplay, describePly, type ReplayEngine } from "./replay";
+import { buildReplay, buildWarning, describePly, type ReplayEngine } from "./replay";
 import type { StateView } from "./types";
 
 function view(over: Partial<StateView> = {}): StateView {
@@ -80,5 +80,23 @@ describe("describePly", () => {
 
   it("has something to say about a position with no last action", () => {
     expect(describePly(view(), view()).text).toBe("—");
+  });
+});
+
+describe("buildWarning", () => {
+  it("says nothing when the game was recorded by this build", () => {
+    expect(buildWarning("abc1234", "abc1234")).toBeNull();
+  });
+
+  it("warns when the replaying build is a different one", () => {
+    const warning = buildWarning("abc1234", "def5678");
+    expect(warning).toMatch(/different build/);
+    expect(warning).toMatch(/rules/);
+  });
+
+  // Records predating the version stamp: nothing to compare, so say so rather
+  // than imply the builds match.
+  it("warns generically when the game carries no build", () => {
+    expect(buildWarning(null, "def5678")).toMatch(/before builds were stamped/);
   });
 });

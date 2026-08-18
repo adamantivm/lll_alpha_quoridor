@@ -1,7 +1,7 @@
 <script lang="ts">
   import initWasm, { Game, init as installPanicHook } from "quoridor-wasm";
   import Board from "./Board.svelte";
-  import { buildReplay, describePly, type Replay } from "./replay";
+  import { buildReplay, buildWarning, describePly, type Replay } from "./replay";
   import type { GameDetail } from "./statsApi";
 
   let { game }: { game: GameDetail } = $props();
@@ -13,6 +13,10 @@
     if (!wasmReady) wasmReady = initWasm().then(() => installPanicHook());
     return wasmReady;
   }
+
+  // The engine replaying the game is the one this build ships, which is not
+  // necessarily the one that played it. Stated, never blocking.
+  const mismatch = $derived(buildWarning(game.app_version, __APP_VERSION__));
 
   let replay = $state<Replay | null>(null);
   let ply = $state(0);
@@ -130,6 +134,10 @@
     </dl>
   </div>
 
+  {#if mismatch}
+    <p class="warn">{mismatch}</p>
+  {/if}
+
   {#if error}
     <p class="err">{error}</p>
   {/if}
@@ -216,6 +224,7 @@
   .scrub { width: 100%; margin-top: 6px; }
   .hint { color: #6b5a3f; display: block; font-size: 0.78rem; max-width: 34rem; }
   .err { color: #c0392b; font-size: 0.85rem; }
+  .warn { color: #b45309; font-size: 0.8rem; margin: 8px 0 0; }
   .plies {
     list-style: none;
     margin: 0;
