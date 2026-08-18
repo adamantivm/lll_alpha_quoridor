@@ -3,11 +3,11 @@
  * the rows the API returned and returns plain objects, so every statistic here
  * is unit-tested rather than eyeballed in a table.
  *
- * Games are grouped by (model, mcts_n, c_puct) -- the three settings that decide
- * how strong the AI plays. Leaf parallelism and virtual loss are deliberately
- * NOT part of the key: they change how the search is batched, not what it
- * converges to, and splitting on them would only thin out the samples. The
- * values seen are reported per group so a surprise there is still visible.
+ * Games are grouped by every search setting that can change how the AI plays:
+ * model, mcts_n, c_puct, leaf parallelism and virtual loss. Batching settings
+ * are in the key even though they are not meant to change the search's
+ * conclusions -- the setup screen warns that they can, so a row that pooled
+ * them would be a win rate for no one configuration in particular.
  *
  * Two conventions, both matching the play UI:
  *  - Player 1 is the side that moves first. The AI is player 1 exactly when
@@ -94,13 +94,13 @@ export interface GroupStats {
   /** Mean plies split by who won, to show whether wins are quick or slow. */
   meanMovesAiWin: number | null;
   meanMovesHumanWin: number | null;
-  leafParallelism: number[];
-  virtualLoss: number[];
+  leafParallelism: number;
+  virtualLoss: number;
   lastPlayed: string;
 }
 
 export function groupKeyOf(g: GameSummary): string {
-  return `${g.model_id}|${g.mcts_n}|${g.c_puct}`;
+  return `${g.model_id}|${g.mcts_n}|${g.c_puct}|${g.leaf_parallelism}|${g.virtual_loss}`;
 }
 
 export function mean(xs: readonly number[]): number | null {
@@ -140,12 +140,8 @@ function moveStats(finished: readonly GameSummary[]): MoveStats | null {
   };
 }
 
-function distinct(xs: readonly number[]): number[] {
-  return [...new Set(xs)].sort((a, b) => a - b);
-}
-
 /**
- * One row per (model, mcts_n, c_puct), most-played first. The label comes from
+ * One row per search configuration, most-played first. The label comes from
  * the group's most recent game: the id is the stable key, but a label can be
  * corrected without the id changing.
  */
@@ -179,8 +175,8 @@ export function groupGames(games: readonly GameSummary[]): GroupStats[] {
       meanMovesHumanWin: mean(
         finished.filter((g) => g.outcome === "human_win").map((g) => g.move_count),
       ),
-      leafParallelism: distinct(bucket.map((g) => g.leaf_parallelism)),
-      virtualLoss: distinct(bucket.map((g) => g.virtual_loss)),
+      leafParallelism: newest.leaf_parallelism,
+      virtualLoss: newest.virtual_loss,
       lastPlayed: newest.started_at,
     };
   });
@@ -190,7 +186,9 @@ export function groupGames(games: readonly GameSummary[]): GroupStats[] {
       b.games - a.games ||
       a.modelId.localeCompare(b.modelId) ||
       a.mctsN - b.mctsN ||
-      a.cPuct - b.cPuct,
+      a.cPuct - b.cPuct ||
+      a.leafParallelism - b.leafParallelism ||
+      a.virtualLoss - b.virtualLoss,
   );
 }
 

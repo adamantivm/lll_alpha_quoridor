@@ -56,13 +56,17 @@ describe("median", () => {
 });
 
 describe("groupKeyOf", () => {
-  it("keys on model, sims and c_puct only", () => {
-    const a = game({ leaf_parallelism: 8, virtual_loss: 1 });
-    const b = game({ leaf_parallelism: 32, virtual_loss: 3 });
-    expect(groupKeyOf(a)).toBe(groupKeyOf(b));
+  // Every setting that can change how the AI plays is part of the key --
+  // including the batching ones, which the setup screen warns can cost
+  // strength. Pooling them would give a win rate for no configuration.
+  it("keys on every search setting that can change the play", () => {
+    const a = game();
+    expect(groupKeyOf(game())).toBe(groupKeyOf(a));
+    expect(groupKeyOf(game({ model_id: "b5w2-mv1" }))).not.toBe(groupKeyOf(a));
     expect(groupKeyOf(game({ mcts_n: 200 }))).not.toBe(groupKeyOf(a));
     expect(groupKeyOf(game({ c_puct: 2 }))).not.toBe(groupKeyOf(a));
-    expect(groupKeyOf(game({ model_id: "b5w2-mv1" }))).not.toBe(groupKeyOf(a));
+    expect(groupKeyOf(game({ leaf_parallelism: 32 }))).not.toBe(groupKeyOf(a));
+    expect(groupKeyOf(game({ virtual_loss: 3 }))).not.toBe(groupKeyOf(a));
   });
 });
 
@@ -134,18 +138,36 @@ describe("groupGames", () => {
     expect(g.meanMovesHumanWin).toBe(60);
   });
 
-  it("groups by settings and reports the parallelism seen, most played first", () => {
+  it("groups by settings, most played first", () => {
     const rows = groupGames([
       game({ game_id: "1", mcts_n: 200, leaf_parallelism: 8 }),
-      game({ game_id: "2", mcts_n: 1000, leaf_parallelism: 8 }),
+      game({ game_id: "2", mcts_n: 1000, leaf_parallelism: 32 }),
       game({ game_id: "3", mcts_n: 1000, leaf_parallelism: 32 }),
-      game({ game_id: "4", mcts_n: 1000, leaf_parallelism: 32 }),
     ]);
     expect(rows).toHaveLength(2);
     expect(rows[0].mctsN).toBe(1000);
-    expect(rows[0].games).toBe(3);
-    expect(rows[0].leafParallelism).toEqual([8, 32]);
+    expect(rows[0].games).toBe(2);
+    expect(rows[0].leafParallelism).toBe(32);
     expect(rows[1].games).toBe(1);
+  });
+
+  // The batching settings are a dimension of the row, not a footnote on it: a
+  // row must describe exactly one opponent.
+  it("keeps differing leaf parallelism and virtual loss in separate rows", () => {
+    const rows = groupGames([
+      game({ game_id: "1", leaf_parallelism: 8, virtual_loss: 1 }),
+      game({ game_id: "2", leaf_parallelism: 32, virtual_loss: 1 }),
+      game({ game_id: "3", leaf_parallelism: 8, virtual_loss: 3 }),
+    ]);
+    expect(rows).toHaveLength(3);
+    expect(rows.map((r) => [r.leafParallelism, r.virtualLoss]).sort()).toEqual(
+      [
+        [8, 1],
+        [8, 3],
+        [32, 1],
+      ].sort(),
+    );
+    expect(new Set(rows.map((r) => r.key)).size).toBe(3);
   });
 
   it("labels a group from its most recent game", () => {

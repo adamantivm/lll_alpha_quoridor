@@ -192,7 +192,7 @@
     <span class="count">{shown.length} of {games.length} games</span>
   </fieldset>
 
-  <h2>By model, sims and c_puct</h2>
+  <h2>By model and search settings</h2>
   <SummaryTable {groups} />
 
   <h2>Games</h2>
