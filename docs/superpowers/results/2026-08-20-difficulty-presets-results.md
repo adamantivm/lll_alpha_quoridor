@@ -73,7 +73,10 @@ overflowing. No console errors were reported on either viewport.
 
 Before and after, same page state (no nickname, First/P1, default 9×9
 model), same viewport, so they compare directly. All five are pinned to
-commit `4915b097397feefcb6d7044995499bbbe12afc1a`, which added them:
+commit `4915b097397feefcb6d7044995499bbbe12afc1a` — its tree holds all five
+blobs, which is what makes the URLs resolve — though only the three `-after`
+and `-advanced` shots were actually added in that commit; the two `-before`
+shots were added earlier, in `2958c6107511a9d2ee83cc4793a8235229bd4010`:
 
 Desktop:
 | Before | After |
@@ -133,7 +136,11 @@ files were touched, so there was nothing to split out.
   today — the one call site in `App.svelte` always passes it — but a future
   caller could omit it and silently get `"normal"` instead of a type error.
 - The committed screenshots run 68–114KB rather than the ~40KB AGENTS.md
-  cites as a target for a mobile viewport shot. This is consistent with the
-  `setup-*-before.png` shots already in the repo before this change, so it
-  isn't a regression, just a pre-existing gap between the stated target and
-  what `playwright-cli screenshot --full-page` actually produces here.
+  cites as a target for a mobile viewport shot. All five images, including
+  the `-before` shots, were added by this branch (`2958c61` and `4915b09`)
+  — there is no pre-existing `setup-*-before.png` to compare against. The
+  repo's actual pre-existing baseline,
+  `docs/superpowers/results/images/browser-verification/`, runs 33–55KB,
+  right at the ~40KB AGENTS.md cites, so this is a real gap between the
+  stated target and what `playwright-cli screenshot --full-page` produces
+  for this setup screen, not a pre-existing one.
