@@ -45,7 +45,7 @@ export const PRESET_BLURB: Record<Preset, string> = {
 
 /** Round down onto the sims slider's grid, clamped to its range. */
 function onGrid(n: number): number {
-  const clamped = Math.min(MAX_SIMS, Math.max(MIN_SIMS, Math.round(n)));
+  const clamped = Math.min(MAX_SIMS, Math.max(MIN_SIMS, n));
   return MIN_SIMS + Math.floor((clamped - MIN_SIMS) / SIMS_STEP) * SIMS_STEP;
 }
 

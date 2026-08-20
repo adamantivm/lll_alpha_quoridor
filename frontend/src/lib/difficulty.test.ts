@@ -40,6 +40,11 @@ describe("presetParams", () => {
     expect(presetParams(big, "difficult").mctsN).toBe(MAX_SIMS);
   });
 
+  it("rounds down for fractional inputs like 990/4", () => {
+    const m990: ModelDefaults = { ...B9, mcts_n: 990 };
+    expect(presetParams(m990, "easy").mctsN).toBe(240); // 990/4 = 247.5, down to 240
+  });
+
   it("keeps every sim count on the slider's grid and in range", () => {
     for (const d of [B9, B5, { ...B9, mcts_n: 999 }, { ...B5, mcts_n: 17 }]) {
       for (const p of PRESETS) {
