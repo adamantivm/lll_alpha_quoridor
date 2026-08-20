@@ -3,6 +3,12 @@
 Gives an agent working in this container a real browser, so frontend changes can
 be verified by rendering them instead of by reasoning about CSS.
 
+![Quoridor running in the devcontainer's browser](https://raw.githubusercontent.com/adamantivm/lll_alpha_quoridor/8472c7b4e513d0551dea0cb632f47c16a078241e/docs/superpowers/results/images/browser-verification/first-browser-check.png)
+
+*A 9x9 game, built and served by `scripts/serve-frontend.sh --build` and driven
+by `playwright-cli` -- no host involvement, no Chrome extension, nothing outside
+the container. 0 console errors.*
+
 ## Why
 
 Two recent episodes: `frontend/README.md` still says the wasm-CPU fallback has
@@ -18,14 +24,14 @@ path, rather than streaming an accessibility tree into the model's context on
 every call, and it ships an official Claude Code skill so its ~60 commands are
 loaded on demand instead of sitting in every prompt.
 
-- `.devcontainer/post-create.sh` installs the CLI and chromium (plus the 95 apt
+- `.devcontainer/post-create.sh` installs the CLI and chromium (plus the ~95 apt
   packages it needs). It warns rather than aborting on failure: unlike rust, a
   missing browser does not make the container unusable.
 - `.devcontainer/devcontainer.json` mounts a **named volume** at
-  `~/.cache/ms-playwright`, so a rebuild does not re-download ~250MB. A named
-  volume rather than a bind mount, because Docker creates a missing bind source
-  as a root-owned directory -- the trap `post-attach.sh` already documents for
-  gh's config.
+  `~/.cache/ms-playwright`, so a rebuild does not re-download 655MB of browser
+  binaries. A named volume rather than a bind mount, because Docker creates a
+  missing bind source as a root-owned directory -- the trap `post-attach.sh`
+  already documents for gh's config.
 - `.claude/skills/playwright-cli/` and `.playwright/cli.config.json` are checked
   in. The config matters: the CLI defaults to the **branded Chrome** channel,
   which is not installed, so without it the very first call dies with
@@ -36,6 +42,21 @@ loaded on demand instead of sitting in every prompt.
   the way Pages serves it. That recipe previously existed only as prose in
   `frontend/README.md`, and getting it wrong hides the exact root-absolute URL
   bug `check:build` was written to catch.
+
+## AGENTS.md rules added
+
+1. **When to verify in a browser.** Whenever the rendered page can change; skip
+   (and say so) when it cannot; run it after the type check, tests and build
+   pass, never before; check the built site rather than the dev server, which
+   does not work in this repo; read the console as well as the picture; use a
+   phone viewport for anything touching layout; measure where a measurement
+   exists; never report a check that was not run.
+2. **When to include screenshots.** Before *and* after, same viewport and page
+   state, since a lone "after" shows a page rather than a fix; actually open
+   every image before citing it; commit under
+   `docs/superpowers/results/images/<topic>/`; and link them by raw URL pinned
+   to a commit SHA, because GitHub does not resolve repo-relative image paths in
+   a PR body.
 
 ## Proof it works
 
@@ -69,6 +90,27 @@ previously answer:
   usually recommended for touch. #14 flagged this as an estimate; it is now a
   measurement.
 
+## A bug this branch introduced, and fixed
+
+The first draft created the browser cache with
+`sudo mkdir -p "$HOME/.cache/ms-playwright"`. Since `~/.cache` did not exist yet,
+`mkdir -p` created *that* as root as well, and nothing else could write a cache
+there afterwards:
+
+- `wasm-pack build` failed with `Error: Permission denied (os error 13)` -- no
+  path, no hint -- which takes down `scripts/serve-frontend.sh --build` and so
+  every browser check.
+- pip silently fell back to running uncached.
+
+Post-create now claims the directories Docker already made rather than creating
+them (a volume's mount point *and any missing parent* both arrive root-owned),
+guarded by an ownership test so a rebuild does not walk 655MB of browser files
+it already owns. It never runs `mkdir` on that path.
+
+Same trap `post-attach.sh` documents for `~/.config/gh`, reached from the other
+direction: there Docker created the root-owned directory, here the provisioning
+script did.
+
 ## Findings worth knowing
 
 - `--mobile` gives a genuine 360x732 / DPR 3 / touch context, and
@@ -77,29 +119,30 @@ previously answer:
   left the viewport at 1280x720 while looking like it had worked.
 - Snapshots, console logs and screenshots land in `.playwright-cli/`, now
   gitignored.
+- Each rebuild reinstalls the ~95 apt packages chromium needs, which is the
+  output visible during post-create. The 655MB of browser binaries are *not*
+  re-downloaded -- that is what the named volume is for.
 
-## AGENTS.md rules added
+## Verified against two container rebuilds
 
-Two blocks, both proposed for review rather than assumed:
-
-1. **When to verify in a browser.** Whenever the rendered page can change; skip
-   (and say so) when it cannot; run it after the type check, tests and build
-   pass, never before; check the built site rather than the dev server, which
-   does not work in this repo; read the console as well as the picture; use
-   `--mobile` for anything touching layout; measure where a measurement exists;
-   never report a check that was not run.
-2. **When to include screenshots.** Before *and* after, same viewport and page
-   state, since a lone "after" shows a page rather than a fix; actually open
-   every image before citing it; commit under
-   `docs/superpowers/results/images/<topic>/`; and link them by raw URL pinned
-   to a commit SHA, because GitHub does not resolve repo-relative image paths in
-   a PR body.
+| check | result |
+|---|---|
+| `playwright-cli` on PATH | 0.1.18, installed by post-create |
+| browser cache | named volume `quoridor-playwright-cache`, ext4, owned by `vscode`, 655MB |
+| chromium system deps | no missing packages |
+| checked-in skill | loads from `.claude/skills/playwright-cli/` |
+| chromium default channel | `.playwright/cli.config.json` applies; no `--browser` flag needed |
+| rust / cargo / wasm-pack / node / npm / gh | all present |
+| python venv | 3.12.3, torch 2.13.0+cu130 |
+| `wasm-pack build` | fails before the ownership fix, succeeds after |
+| `scripts/serve-frontend.sh --build` | builds and serves under the path prefix, HTTP 200 |
+| end-to-end browser check | game playable, 0 console errors |
+| `post-create.sh` re-run | exit 0, idempotent, browser download skipped, ownership preserved |
 
 ## To pick this up
 
 **Rebuild the container** (Dev Containers: Rebuild Container). The named volume
-mount and the post-create step only take effect on a rebuild. First rebuild
-downloads chromium; later ones reuse the volume.
+mount and the post-create step only take effect on a rebuild.
 
 ## Out of scope
 
