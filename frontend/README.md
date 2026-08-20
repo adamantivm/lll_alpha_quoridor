@@ -20,8 +20,9 @@ npm --prefix frontend run check:build # post-build assertions
 
 WebGPU is used when available and is much faster. When it isn't, the app
 falls back to onnxruntime's wasm CPU backend and shows a banner explaining
-that the AI will think more slowly — it stays playable either way. Lowering
-*MCTS sims* on the setup screen trades strength for speed on the CPU path.
+that the AI will think more slowly — it stays playable either way. Picking a
+lower *Difficulty* on the setup screen trades strength for speed on the CPU
+path.
 
 The host must serve `dist/ort/*.mjs` with a JavaScript MIME type: onnxruntime
 loads it with a dynamic `import()`, so a wrong content type fails as a
