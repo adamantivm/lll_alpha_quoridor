@@ -31,6 +31,43 @@ Rules specific to the rust implementation (rust folder):
  - Whenever possible, keep compatibility with the python version implemented in src
  - keep clear separation of responsibilities. e.g.: game state functions in game_state.rs
 
+Verify frontend changes in a real browser. The devcontainer has the official Playwright
+CLI (`playwright-cli`); follow the skill in `.claude/skills/playwright-cli/`. If the
+command is missing, re-run `.devcontainer/post-create.sh`.
+- Do it whenever the change can alter what a user sees or can do: Svelte components, CSS,
+  `index.html` or `stats.html`, the worker, wasm or ONNX loading, or the wiring between
+  them. `svelte-check`, vitest and `check:build` say nothing about whether the page renders.
+- Skip it when the rendered page cannot change -- python, rust the frontend does not
+  consume, docs, CI config. Say that you skipped it and why; do not silently omit it.
+- Run it at the *end* of verification: after the type check, the unit tests and the build
+  pass, and before writing the results file. Do not point a browser at a build that does
+  not compile.
+- Check the built site, never the dev server -- `npm --prefix frontend run dev` does not
+  work in this repo (see frontend/README.md). Use `scripts/serve-frontend.sh --build`.
+- Read the console as well as the picture: `playwright-cli console error`. A page can look
+  right and still be throwing.
+- For anything touching layout, check `--mobile` (360x732, DPR 3, touch) as well as the
+  default desktop viewport. `--device "<name>"` has been seen to silently do nothing.
+- Confirm the specific thing that changed, and measure it where a measurement exists: a
+  bounding box from `playwright-cli eval` beats an impression that it looks right.
+- Session artifacts land in `.playwright-cli/` (gitignored). Close the browser when done:
+  `playwright-cli close`.
+- Never report a browser check you did not run.
+
+Include screenshots when the change is visual and a reviewer would otherwise have to take
+your word for it.
+- Capture before *and* after, from the same viewport and the same page state. An "after"
+  on its own shows a page, not a fix.
+- Look at every screenshot you take -- actually read the image file -- before citing it.
+  Describing a screenshot you have not opened is the same as inventing it.
+- Commit them under `docs/superpowers/results/images/<topic>/` and reference them from the
+  results markdown.
+- GitHub does not resolve repository-relative image paths in a PR body. Link them by raw
+  URL pinned to the commit that added them, so the PR renders and goes on rendering after
+  the branch is deleted:
+  `https://raw.githubusercontent.com/adamantivm/lll_alpha_quoridor/<commit-sha>/docs/superpowers/results/images/<topic>/before.png`
+- Keep them cheap: a mobile viewport shot is about 40KB. Do not commit videos or traces.
+
 If the work is relatively large, write one commit per change, so that the updates are easier to understand and review.
 
 Always write the plan to file as a markdown file before starting implementation.
