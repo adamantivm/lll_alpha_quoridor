@@ -57,3 +57,6 @@ game_recording.yaml
 # Written by the devcontainer CLI when it resolves feature digests, so its
 # contents track whichever machine last rebuilt the container.
 .devcontainer/devcontainer-lock.json
+
+# Playwright CLI session artifacts: page snapshots, console logs, screenshots.
+.playwright-cli/
