@@ -69,6 +69,37 @@ done
 rustc --version
 wasm-pack --version
 
+echo "==> playwright"
+# The official Playwright CLI (microsoft/playwright-cli), not the MCP server:
+# it writes page snapshots to disk and prints a path, instead of streaming an
+# accessibility tree through the model's context on every call. Its Claude Code
+# skill and the chromium channel config are checked in under .claude/skills/
+# and .playwright/, so nothing here needs to write into the workspace.
+#
+# Unlike rust, this is not load-bearing for building the project, so a failure
+# here warns instead of aborting the container: a browser can be installed
+# later by re-running this script, but a container that refuses to come up
+# because a CDN was unreachable helps nobody.
+if npm install -g @playwright/cli@latest; then
+  # ~/.cache/ms-playwright is a named volume (see devcontainer.json). Docker
+  # creates its mount point -- and any missing parent -- root-owned, so claim
+  # both. ~/.cache matters more than the volume: leaving it owned by root
+  # breaks every other tool that keeps a cache there, and wasm-pack's failure
+  # mode for that is a bare "Permission denied (os error 13)" with no path.
+  # Never `sudo mkdir` this path; that is what created the problem.
+  for dir in "$HOME/.cache" "$HOME/.cache/ms-playwright"; do
+    if [ -d "$dir" ] && [ "$(stat -c %u "$dir")" != "$(id -u)" ]; then
+      sudo chown -R "$(id -u):$(id -g)" "$dir"
+    fi
+  done
+  # Skips the download when the volume already carries this browser build.
+  playwright-cli install-browser chromium --with-deps || \
+    echo "warning: chromium install failed -- browser checks are unavailable" >&2
+else
+  echo "warning: @playwright/cli install failed -- browser checks are" >&2
+  echo "  unavailable until 'npm install -g @playwright/cli@latest' succeeds." >&2
+fi
+
 echo "==> python venv (3.12)"
 # This workspace is bind-mounted from the host, so .venv is the host's own
 # venv, not something built inside this container -- it is deliberately
