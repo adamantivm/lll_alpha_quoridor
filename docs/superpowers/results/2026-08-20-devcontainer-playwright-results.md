@@ -71,9 +71,10 @@ previously answer:
 
 ## Findings worth knowing
 
-- `--mobile` gives a genuine 360x732 / DPR 3 / touch context. `--device
-  "iphone 15"` silently did nothing -- the viewport stayed 1280x720 -- so rely
-  on `--mobile`.
+- `--mobile` gives a genuine 360x732 / DPR 3 / touch context, and
+  `--device="iPhone 15"` gives 393x659. Device names are case-sensitive, and an
+  unknown one is ignored silently rather than reported: `--device "iphone 15"`
+  left the viewport at 1280x720 while looking like it had worked.
 - Snapshots, console logs and screenshots land in `.playwright-cli/`, now
   gitignored.
 

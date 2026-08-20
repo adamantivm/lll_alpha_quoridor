@@ -46,8 +46,11 @@ command is missing, re-run `.devcontainer/post-create.sh`.
   work in this repo (see frontend/README.md). Use `scripts/serve-frontend.sh --build`.
 - Read the console as well as the picture: `playwright-cli console error`. A page can look
   right and still be throwing.
-- For anything touching layout, check `--mobile` (360x732, DPR 3, touch) as well as the
-  default desktop viewport. `--device "<name>"` has been seen to silently do nothing.
+- For anything touching layout, check a phone viewport as well as the default desktop one:
+  `--mobile` (360x732, DPR 3, touch) or `--device="iPhone 15"` (393x659). Device names are
+  case-sensitive and an unknown one is ignored *in silence*, leaving you on the 1280x720
+  desktop viewport -- so confirm the viewport with `playwright-cli eval` before trusting a
+  screenshot you are about to call mobile.
 - Confirm the specific thing that changed, and measure it where a measurement exists: a
   bounding box from `playwright-cli eval` beats an impression that it looks right.
 - Session artifacts land in `.playwright-cli/` (gitignored). Close the browser when done:

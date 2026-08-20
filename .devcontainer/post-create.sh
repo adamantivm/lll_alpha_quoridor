@@ -81,10 +81,17 @@ echo "==> playwright"
 # later by re-running this script, but a container that refuses to come up
 # because a CDN was unreachable helps nobody.
 if npm install -g @playwright/cli@latest; then
-  # ~/.cache/ms-playwright is a named volume (see devcontainer.json), created
-  # root-owned by Docker on first use, so claim it before writing into it.
-  sudo mkdir -p "$HOME/.cache/ms-playwright"
-  sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache/ms-playwright"
+  # ~/.cache/ms-playwright is a named volume (see devcontainer.json). Docker
+  # creates its mount point -- and any missing parent -- root-owned, so claim
+  # both. ~/.cache matters more than the volume: leaving it owned by root
+  # breaks every other tool that keeps a cache there, and wasm-pack's failure
+  # mode for that is a bare "Permission denied (os error 13)" with no path.
+  # Never `sudo mkdir` this path; that is what created the problem.
+  for dir in "$HOME/.cache" "$HOME/.cache/ms-playwright"; do
+    if [ -d "$dir" ] && [ "$(stat -c %u "$dir")" != "$(id -u)" ]; then
+      sudo chown -R "$(id -u):$(id -g)" "$dir"
+    fi
+  done
   # Skips the download when the volume already carries this browser build.
   playwright-cli install-browser chromium --with-deps || \
     echo "warning: chromium install failed -- browser checks are unavailable" >&2
