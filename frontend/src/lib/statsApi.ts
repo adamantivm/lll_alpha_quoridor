@@ -40,13 +40,13 @@ export interface GameSummary {
   max_walls: number;
   max_steps: number;
   human_player: number;
+  preset: string;
   mcts_n: number;
   c_puct: number;
   leaf_parallelism: number;
   virtual_loss: number;
   webgpu_ok: boolean | null;
   country: string | null;
-  preset: string;
 }
 
 /** One game, with the move list the replay viewer needs. */
