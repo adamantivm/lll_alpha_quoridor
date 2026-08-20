@@ -126,13 +126,26 @@ export async function fetchAllGames(
   let cursor: string | null = null;
   for (;;) {
     const room = maxRows - games.length;
-    if (room <= 0) return { games, truncated: true };
+    // Out of budget. The cursor only says the last page came back full, which
+    // it does when the database holds exactly `maxRows` games, so ask for one
+    // more row before telling anyone their history is being cut off.
+    if (room <= 0) return { games, truncated: await hasMore(endpoint, cursor, fetchImpl) };
     const page = asPage(await getJson(listUrl(endpoint, Math.min(PAGE_SIZE, room), cursor), fetchImpl));
     games.push(...page.games);
     // A short page, or no cursor, means we have reached the end.
     if (page.next_cursor === null || page.games.length === 0) return { games, truncated: false };
     cursor = page.next_cursor;
   }
+}
+
+/** Is there at least one game past `cursor`? One row, asked once, at the cap. */
+async function hasMore(
+  endpoint: string,
+  cursor: string | null,
+  fetchImpl: FetchLike,
+): Promise<boolean> {
+  if (cursor === null) return false;
+  return asPage(await getJson(listUrl(endpoint, 1, cursor), fetchImpl)).games.length > 0;
 }
 
 export async function fetchGame(

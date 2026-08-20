@@ -53,3 +53,22 @@ export function describePly(previous: StateView, view: StateView): { mover: numb
       : `wall ${a.orientation} at (${a.row}, ${a.col})`;
   return { mover, text };
 }
+
+/**
+ * Whether to warn that a recorded game is being replayed by a different build
+ * of the engine than the one that played it.
+ *
+ * A game is stored as action indices, so it is replayed by the wasm engine
+ * shipping with whatever build the viewer happens to be running. An illegal
+ * stored move is caught by buildReplay(), but a rules change that keeps every
+ * move legal and merely changes what it means would not be -- so the builds are
+ * compared and the difference is stated. Never a reason to block a replay: the
+ * overwhelmingly common case is a build that changed nothing about the rules.
+ */
+export function buildWarning(recorded: string | null, current: string): string | null {
+  if (recorded === null) {
+    return "This game was recorded before builds were stamped. Replay may differ if the game rules have changed since.";
+  }
+  if (recorded === current) return null;
+  return "This game was recorded with a different build. Replay may differ if the game rules have changed since.";
+}

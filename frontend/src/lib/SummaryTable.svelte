@@ -52,6 +52,8 @@
         <th>Model</th>
         <th class="num sortable" class:sorted={sortKey === "mctsN"} onclick={() => sortBy("mctsN")}>sims</th>
         <th class="num sortable" class:sorted={sortKey === "cPuct"} onclick={() => sortBy("cPuct")}>c_puct</th>
+        <th class="num">leaf par.</th>
+        <th class="num">virt. loss</th>
         <th class="num sortable" class:sorted={sortKey === "games"} onclick={() => sortBy("games")}>games</th>
         <th class="num">finished</th>
         <th class="num sortable" class:sorted={sortKey === "aiWinRate"} onclick={() => sortBy("aiWinRate")}>
@@ -65,7 +67,6 @@
         </th>
         <th class="num">plies mean · min–max</th>
         <th class="num">plies on AI win · human win</th>
-        <th class="num">leaf par.</th>
       </tr>
     </thead>
     <tbody>
@@ -77,6 +78,8 @@
           </td>
           <td class="num">{g.mctsN}</td>
           <td class="num">{g.cPuct}</td>
+          <td class="num">{g.leafParallelism}</td>
+          <td class="num">{g.virtualLoss}</td>
           <td class="num">
             {g.games}
             {#if g.abandoned || g.inProgress}
@@ -95,18 +98,19 @@
             {#if g.moves}{one(g.moves.mean)} · {g.moves.min}–{g.moves.max}{:else}—{/if}
           </td>
           <td class="num">{one(g.meanMovesAiWin)} · {one(g.meanMovesHumanWin)}</td>
-          <td class="num">{g.leafParallelism.join(", ")}</td>
         </tr>
       {/each}
       {#if sorted.length === 0}
-        <tr><td colspan="13" class="hint">No games match these filters.</td></tr>
+        <tr><td colspan="14" class="hint">No games match these filters.</td></tr>
       {/if}
     </tbody>
   </table>
 </div>
 
 <p class="hint footnote">
-  P1 is the side that moves first. Win rates count finished games only — an abandoned game has
+  One row per search configuration. Leaf parallelism and virtual loss are part of that: they
+  change how the search batches its work, which can move how well it plays, so games run with
+  different values are counted apart rather than pooled. P1 is the side that moves first. Win rates count finished games only — an abandoned game has
   no result. A ply is one player's move; a game of 40 plies is 20 moves each.
 </p>
 

@@ -28,6 +28,19 @@ export interface BoardGrid {
   cells: GridCell[];
 }
 
+/** Pawn-cell and post track sizes, as a ratio and as pixels at full size.
+ *  Board.svelte multiplies both by a scale factor that shrinks the board to fit
+ *  a narrow viewport, so these are the sizes used from `boardTrackUnits(n)` px
+ *  of width upwards. */
+export const PAWN_UNITS = 54;
+export const POST_UNITS = 14;
+
+/** Total width of a board's tracks, excluding the board's own padding: n pawn
+ *  cells separated by n-1 posts. */
+export function boardTrackUnits(n: number): number {
+  return n * PAWN_UNITS + (n - 1) * POST_UNITS;
+}
+
 export function cellKey(gr: number, gc: number): string {
   return `${gr},${gc}`;
 }

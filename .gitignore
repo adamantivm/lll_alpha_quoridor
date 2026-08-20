@@ -60,3 +60,6 @@ game_recording.yaml
 
 # Playwright CLI session artifacts: page snapshots, console logs, screenshots.
 .playwright-cli/
+
+# Staged before/after builds for manual checks on a real device.
+.phone-test/
