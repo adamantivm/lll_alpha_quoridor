@@ -203,6 +203,12 @@ describe("the game lifecycle", () => {
     expect(h.nicks).toEqual(["ada"]);
   });
 
+  it("sends the chosen difficulty preset in the game record", () => {
+    const h = harness();
+    h.session.start(setup({ preset: "easy" }));
+    expect(h.sent[0]).toMatchObject({ preset: "easy" });
+  });
+
   it("refuses to start, and records nothing, without a name", () => {
     const h = harness();
     expect(h.session.start(setup({ nick: "   " }))).toBe(false);
