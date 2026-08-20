@@ -3,6 +3,7 @@
   import Board from "./Board.svelte";
   import { buildReplay, buildWarning, describePly, type Replay } from "./replay";
   import type { GameDetail } from "./statsApi";
+  import { presetLabel } from "./difficulty";
 
   let { game }: { game: GameDetail } = $props();
 
@@ -123,6 +124,7 @@
       </small>
     </div>
     <dl class="params">
+      <dt>level</dt><dd>{presetLabel(game.preset)}</dd>
       <dt>sims</dt><dd>{game.mcts_n}</dd>
       <dt>c_puct</dt><dd>{game.c_puct}</dd>
       <dt>leaf par.</dt><dd>{game.leaf_parallelism}</dd>

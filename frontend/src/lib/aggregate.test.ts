@@ -42,6 +42,7 @@ function game(over: Partial<GameSummary> = {}): GameSummary {
     virtual_loss: 1,
     webgpu_ok: true,
     country: "UY",
+    preset: "normal",
     ...over,
   };
 }

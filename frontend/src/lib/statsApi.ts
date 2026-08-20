@@ -46,6 +46,7 @@ export interface GameSummary {
   virtual_loss: number;
   webgpu_ok: boolean | null;
   country: string | null;
+  preset: string;
 }
 
 /** One game, with the move list the replay viewer needs. */
