@@ -19,10 +19,10 @@ export const UPSERT_SQL = `
 INSERT INTO game (
   game_id, started_at, updated_at, status, outcome, winner, moves, move_count,
   action_log, undo_count, rev, duration_ms, client_id, nick, schema_version, app_version,
-  model_label, model_id, board_size, max_walls, max_steps, human_player,
+  model_label, model_id, board_size, max_walls, max_steps, human_player, preset,
   mcts_n, c_puct, leaf_parallelism, virtual_loss, webgpu_ok, ip, user_agent, country
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 ON CONFLICT(game_id) DO UPDATE SET
@@ -81,6 +81,7 @@ export function bindValues(
     r.max_walls,
     r.max_steps,
     r.human_player,
+    r.preset,
     r.mcts_n,
     r.c_puct,
     r.leaf_parallelism,
@@ -126,6 +127,7 @@ export const SUMMARY_COLUMNS = [
   "max_walls",
   "max_steps",
   "human_player",
+  "preset",
   "mcts_n",
   "c_puct",
   "leaf_parallelism",
@@ -157,6 +159,7 @@ export interface GameSummary {
   max_walls: number;
   max_steps: number;
   human_player: number;
+  preset: string;
   mcts_n: number;
   c_puct: number;
   leaf_parallelism: number;
@@ -309,6 +312,7 @@ export function rowToSummary(row: Record<string, unknown>): GameSummary {
     max_walls: row.max_walls as number,
     max_steps: row.max_steps as number,
     human_player: row.human_player as number,
+    preset: (row.preset ?? "unknown") as string,
     mcts_n: row.mcts_n as number,
     c_puct: row.c_puct as number,
     leaf_parallelism: row.leaf_parallelism as number,

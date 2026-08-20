@@ -168,4 +168,21 @@ describe("validate", () => {
       expect(r.record.webgpu_ok).toBeNull();
     }
   });
+
+  it("keeps a valid preset", () => {
+    const r = validate(body({ preset: "difficult" }));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.record.preset).toBe("difficult");
+  });
+
+  it("defaults a missing preset, the way an older client sends none", () => {
+    const r = validate(body());
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.record.preset).toBe("unknown");
+  });
+
+  it("rejects a preset it does not know", () => {
+    expect(err({ preset: "impossible" })).toContain("preset");
+    expect(err({ preset: 7 })).toContain("preset");
+  });
 });
