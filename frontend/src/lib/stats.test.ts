@@ -24,6 +24,7 @@ const META: GameMeta = {
   cPuct: 1.4,
   leafParallelism: 8,
   virtualLoss: 1,
+  preset: "normal",
 };
 
 /** Only the fields the reporter reads; the rest of StateView is irrelevant here. */
@@ -144,6 +145,12 @@ describe("createStatsReporter", () => {
       webgpu_ok: true,
       nick: DEFAULT_NICK,
     });
+  });
+
+  it("records which difficulty the game was played at", () => {
+    const { reporter, sent } = setup();
+    reporter.startGame({ ...META, preset: "easy" });
+    expect(sent[0]).toMatchObject({ preset: "easy" });
   });
 
   it("reads the nick at send time, so one chosen mid-game lands on it", () => {

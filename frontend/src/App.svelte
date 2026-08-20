@@ -64,7 +64,7 @@
   function startGame() {
     // Refused without a name, which is also why the setup screen's button is
     // disabled until there is one.
-    if (!session.start({ model: selected, params, humanPlayer, nick })) return;
+    if (!session.start({ model: selected, params, humanPlayer, nick, preset: difficulty })) return;
     started = true;
     error = null; thinking = true; progress = null; view = null;
   }

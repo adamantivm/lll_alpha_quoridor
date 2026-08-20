@@ -115,6 +115,7 @@ describe("statsMetaFor / aiRequestFor", () => {
       maxWalls: 10,
       maxSteps: 100,
       humanPlayer: 1,
+      preset: "normal",
       mctsN: 64,
       cPuct: 2.1,
       leafParallelism: 4,
