@@ -1,15 +1,21 @@
 <script lang="ts">
   import type { ModelEntry } from "./models";
+  import {
+    MAX_SIMS, MIN_SIMS, PRESETS, PRESET_BLURB, PRESET_LABEL, SIMS_STEP,
+    type Difficulty, type Preset, type SearchParams,
+  } from "./difficulty";
   import { MAX_NICK_LENGTH } from "./stats";
-  type Params = { mctsN: number; cPuct: number; leafParallelism: number; virtualLoss: number };
-  let { models, selected, params, humanPlayer, nick, onmodel, onparams, onhumanplayer, onnick, onstart, onrules }: {
+  let { models, selected, params, difficulty, humanPlayer, nick,
+        onmodel, onparams, onpreset, onhumanplayer, onnick, onstart, onrules }: {
     models: ModelEntry[];
     selected: ModelEntry;
-    params: Params;
+    params: SearchParams;
+    difficulty: Difficulty;
     humanPlayer: number;
     nick: string;
     onmodel: (entry: ModelEntry) => void;
-    onparams: (params: Params) => void;
+    onparams: (params: SearchParams) => void;
+    onpreset: (p: Preset) => void;
     onhumanplayer: (p: number) => void;
     onnick: (nick: string) => void;
     onstart: () => void;
@@ -61,46 +67,70 @@
     <small class="hint">{humanPlayer === 0 ? "You move first." : "The AI moves first."}</small>
   </div>
 
-  <!-- Search settings. Fixed for the whole game: changing the opponent's
-       strength half-way through makes the game, and its record, meaningless. -->
-  <fieldset>
-    <legend>AI search</legend>
+  <!-- Difficulty. Fixed for the whole game: changing the opponent's strength
+       half-way through makes the game, and its record, meaningless. -->
+  <div class="who">
+    <span class="who-label">Difficulty</span>
+    <div class="segmented levels">
+      {#each PRESETS as p}
+        <label class:sel={difficulty === p}>
+          <input type="radio" name="difficulty" checked={difficulty === p}
+            onchange={() => onpreset(p)} />
+          {PRESET_LABEL[p]}
+        </label>
+      {/each}
+    </div>
     <small class="hint">
-      The defaults come with the model and are a reasonable opponent. Turn them
-      down for a faster or weaker game.
+      {#if difficulty === "custom"}
+        Custom — {params.mctsN} sims, c_puct {params.cPuct}.
+      {:else}
+        {params.mctsN} sims · {PRESET_BLURB[difficulty]}.
+      {/if}
     </small>
+  </div>
 
-    <label>MCTS sims: {params.mctsN}
-      <input type="range" min="16" max="2000" step="16" value={params.mctsN}
-        oninput={(e) => onparams({ ...params, mctsN: +e.currentTarget.value })} />
+  <!-- The raw parameters, for people who came for them. Opening this changes
+       nothing; editing a slider is what makes the setting Custom. -->
+  <details class="advanced">
+    <summary>Advanced</summary>
+    <fieldset>
       <small class="hint">
-        How many possible continuations the AI tries before committing to a move.
-        More is stronger and slower — this is the main strength dial.
+        The search parameters behind the levels above. Moving any of them
+        switches the difficulty to Custom.
       </small>
-    </label>
 
-    <label>c_puct: {params.cPuct}
-      <input type="range" min="0.5" max="3" step="0.1" value={params.cPuct}
-        oninput={(e) => onparams({ ...params, cPuct: +e.currentTarget.value })} />
-      <small class="hint">
-        How curious the search is. Low values dig deeper into the moves it
-        already likes; high values spread the same effort over more candidates.
-        The default is tuned — moving it far either way tends to play worse, not
-        faster.
-      </small>
-    </label>
+      <label>MCTS sims: {params.mctsN}
+        <input type="range" min={MIN_SIMS} max={MAX_SIMS} step={SIMS_STEP} value={params.mctsN}
+          oninput={(e) => onparams({ ...params, mctsN: +e.currentTarget.value })} />
+        <small class="hint">
+          How many possible continuations the AI tries before committing to a move.
+          More is stronger and slower — this is the main strength dial.
+        </small>
+      </label>
 
-    <label>leaf parallelism: {params.leafParallelism}
-      <input type="range" min="1" max="32" step="1" value={params.leafParallelism}
-        oninput={(e) => onparams({ ...params, leafParallelism: +e.currentTarget.value })} />
-      <small class="hint">
-        How many positions are sent to the network at once. More is faster,
-        because your GPU would rather grade a batch than one at a time — but the
-        search has to guess about the positions still in flight, so the AI may
-        play slightly worse.
-      </small>
-    </label>
-  </fieldset>
+      <label>c_puct: {params.cPuct}
+        <input type="range" min="0.5" max="3" step="0.1" value={params.cPuct}
+          oninput={(e) => onparams({ ...params, cPuct: +e.currentTarget.value })} />
+        <small class="hint">
+          How curious the search is. Low values dig deeper into the moves it
+          already likes; high values spread the same effort over more candidates.
+          The default is tuned — moving it far either way tends to play worse, not
+          faster.
+        </small>
+      </label>
+
+      <label>leaf parallelism: {params.leafParallelism}
+        <input type="range" min="1" max="32" step="1" value={params.leafParallelism}
+          oninput={(e) => onparams({ ...params, leafParallelism: +e.currentTarget.value })} />
+        <small class="hint">
+          How many positions are sent to the network at once. More is faster,
+          because your GPU would rather grade a batch than one at a time — but the
+          search has to guess about the positions still in flight, so the AI may
+          play slightly worse.
+        </small>
+      </label>
+    </fieldset>
+  </details>
 
   <button class="start" onclick={onstart} disabled={!named}>Start game</button>
   {#if !named}<small class="hint need-nick">Enter a nickname to start.</small>{/if}
@@ -135,10 +165,19 @@
     border-radius: 8px;
   }
   fieldset .hint { line-height: 1.4; }
-  legend { font-size: 0.85rem; font-weight: 600; padding: 0 4px; }
   .who { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; }
   .who-label { font-weight: 600; }
-  .segmented { display: flex; gap: 6px; }
+  .segmented { display: flex; flex-wrap: wrap; gap: 6px; }
+  /* Four labels do not fit 360px in one line; each keeps its text on one line
+     and the row wraps to two. */
+  .levels label { flex: 1 1 auto; white-space: nowrap; }
+  .advanced summary {
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: #6b5a3f;
+  }
+  .advanced fieldset { margin-top: 8px; }
   .segmented label {
     flex: 1;
     flex-direction: row;

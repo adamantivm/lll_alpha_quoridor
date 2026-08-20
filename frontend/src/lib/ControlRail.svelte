@@ -1,13 +1,14 @@
 <script lang="ts">
+  import { presetLabel, type Difficulty, type SearchParams } from "./difficulty";
   import type { ModelEntry } from "./models";
   import type { StateView } from "./types";
-  type Params = { mctsN: number; cPuct: number; leafParallelism: number; virtualLoss: number };
-  let { view, thinking, progress, selected, params, humanPlayer, onundo, onnewgame, onrules }: {
+  let { view, thinking, progress, selected, params, difficulty, humanPlayer, onundo, onnewgame, onrules }: {
     view: StateView | null;
     thinking: boolean;
     progress: { done: number; total: number } | null;
     selected: ModelEntry;
-    params: Params;
+    params: SearchParams;
+    difficulty: Difficulty;
     humanPlayer: number;
     onundo: () => void;
     onnewgame: () => void;
@@ -48,7 +49,7 @@
     <strong>This game</strong>
     <div>{selected.label}</div>
     <div>You play {humanPlayer === 0 ? "first" : "second"}</div>
-    <div>{params.mctsN} sims · c_puct {params.cPuct} · leaf {params.leafParallelism}</div>
+    <div>{presetLabel(difficulty)} · {params.mctsN} sims · c_puct {params.cPuct} · leaf {params.leafParallelism}</div>
   </div>
   <!-- Reachable mid-game on purpose: the jump and wall rules are exactly the
        ones a new player looks up while staring at a position. -->
