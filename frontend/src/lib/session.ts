@@ -11,6 +11,7 @@
  */
 import { modelUrl, ortBase, type ModelEntry } from "./models";
 import { saveNick, type GameMeta, type StatsReporter } from "./stats";
+import type { Difficulty } from "./difficulty";
 import type { StateView } from "./types";
 
 /** The search knobs the setup screen exposes. Fixed for a whole game. */
@@ -27,6 +28,7 @@ export interface GameSetup {
   params: SearchParams;
   humanPlayer: number;
   nick: string;
+  preset?: Difficulty;
 }
 
 /** The "newGame" message ai.worker.ts expects. */
@@ -60,6 +62,7 @@ export function statsMetaFor(setup: GameSetup): GameMeta {
     maxWalls: setup.model.max_walls,
     maxSteps: setup.model.max_steps,
     humanPlayer: setup.humanPlayer,
+    preset: setup.preset ?? "normal",
     mctsN: setup.params.mctsN,
     cPuct: setup.params.cPuct,
     leafParallelism: setup.params.leafParallelism,

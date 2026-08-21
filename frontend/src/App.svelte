@@ -5,6 +5,7 @@
   import SetupScreen from "./lib/SetupScreen.svelte";
   import WebGpuBanner from "./lib/WebGpuBanner.svelte";
   import { AiClient } from "./lib/aiClient";
+  import { presetParams, type Difficulty, type Preset, type SearchParams } from "./lib/difficulty";
   import { checkWebGpu, type WebGpuStatus } from "./lib/webgpu";
   import { MODELS, pickDefault, type ModelEntry } from "./lib/models";
   import { awaitingHuman, createGameSession } from "./lib/session";
@@ -27,12 +28,9 @@
   // One dialog for both screens: the rules do not change once a game starts,
   // and a mid-game reader wants the same text a first-time visitor does.
   let showRules = $state(false);
-  let params = $state({
-    mctsN: initial.defaults.mcts_n,
-    cPuct: initial.defaults.mcts_c_puct,
-    leafParallelism: initial.defaults.leaf_parallelism,
-    virtualLoss: initial.defaults.virtual_loss,
-  });
+  // The level is a label over `params`; `params` is what the engine gets.
+  let difficulty = $state<Difficulty>("normal");
+  let params = $state(presetParams(initial.defaults, "normal"));
 
   // True only when the human may act: their turn, game live, AI not working.
   const humanToPlay = $derived(awaitingHuman(view, thinking));
@@ -66,7 +64,7 @@
   function startGame() {
     // Refused without a name, which is also why the setup screen's button is
     // disabled until there is one.
-    if (!session.start({ model: selected, params, humanPlayer, nick })) return;
+    if (!session.start({ model: selected, params, humanPlayer, nick, preset: difficulty })) return;
     started = true;
     error = null; thinking = true; progress = null; view = null;
   }
@@ -80,17 +78,28 @@
     view = null; thinking = false; progress = null; error = null;
   }
 
-  // Each model carries its own board size and tuned search defaults, so
-  // picking one replaces the parameters rather than keeping the old ones.
+  function selectPreset(p: Preset) {
+    difficulty = p;
+    params = presetParams(selected.defaults, p);
+  }
+
+  // Hand-editing under Advanced: the numbers are the truth, so the label stops
+  // claiming a level it no longer matches.
+  function editParams(p: SearchParams) {
+    params = p;
+    difficulty = "custom";
+  }
+
+  // Each model carries its own board size and tuned search defaults, so picking
+  // one re-applies the current level against the new model rather than keeping
+  // the old numbers. Hand-tuned values cannot transfer to a different board, so
+  // Custom falls back to Normal.
   function selectModel(entry: ModelEntry) {
     if (entry.id === selected.id) return;
     selected = entry;
-    params = {
-      mctsN: entry.defaults.mcts_n,
-      cPuct: entry.defaults.mcts_c_puct,
-      leafParallelism: entry.defaults.leaf_parallelism,
-      virtualLoss: entry.defaults.virtual_loss,
-    };
+    const p: Preset = difficulty === "custom" ? "normal" : difficulty;
+    difficulty = p;
+    params = presetParams(entry.defaults, p);
   }
 
   function act(index: number) { thinking = true; ai.move(index); }
@@ -107,9 +116,10 @@
 </nav>
 
 {#if !started}
-  <SetupScreen models={MODELS} {selected} {params} {humanPlayer} {nick}
+  <SetupScreen models={MODELS} {selected} {params} {difficulty} {humanPlayer} {nick}
     onmodel={selectModel}
-    onparams={(p) => { params = p; }}
+    onparams={editParams}
+    onpreset={selectPreset}
     onhumanplayer={(p) => { humanPlayer = p; }}
     onnick={(n) => { nick = n; }}
     onstart={startGame}
@@ -133,7 +143,7 @@
         <p>Loading…</p>
       {/if}
     </div>
-    <ControlRail {view} {thinking} {progress} {selected} {params} {humanPlayer}
+    <ControlRail {view} {thinking} {progress} {selected} {params} {difficulty} {humanPlayer}
       onundo={() => ai.undo(2)} onnewgame={backToSetup}
       onrules={() => { showRules = true; }} />
   </div>

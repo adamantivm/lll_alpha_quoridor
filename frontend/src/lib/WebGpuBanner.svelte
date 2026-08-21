@@ -17,7 +17,8 @@
   {:else if status.reason === "error"}
     Starting WebGPU failed.
   {/if}
-  Lower <em>MCTS sims</em> in the panel if moves take too long.
+  Pick a lower <em>Difficulty</em> if moves take too long — it runs fewer
+  simulations and thinks faster.
   {#if status.detail}
     <small class="detail">{status.detail}</small>
   {/if}

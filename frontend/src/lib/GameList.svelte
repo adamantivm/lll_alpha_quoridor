@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { GameSummary } from "./statsApi";
+  import { presetLabel } from "./difficulty";
 
   let { games, selectedId, onselect }: {
     games: GameSummary[];
@@ -38,6 +39,7 @@
         <th>when</th>
         <th>player</th>
         <th>model</th>
+        <th>level</th>
         <th class="num">sims</th>
         <th class="num">c_puct</th>
         <th>AI seat</th>
@@ -61,6 +63,7 @@
           <td>{when(g.started_at)}</td>
           <td>{g.nick}</td>
           <td>{g.model_label}</td>
+          <td>{presetLabel(g.preset)}</td>
           <td class="num">{g.mcts_n}</td>
           <td class="num">{g.c_puct}</td>
           <!-- The AI moves first exactly when the human chose to move second. -->
@@ -74,7 +77,7 @@
         </tr>
       {/each}
       {#if rows.length === 0}
-        <tr><td colspan="10" class="empty">No games match these filters.</td></tr>
+        <tr><td colspan="11" class="empty">No games match these filters.</td></tr>
       {/if}
     </tbody>
   </table>

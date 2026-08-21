@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS game (
   max_walls        INTEGER NOT NULL,
   max_steps        INTEGER NOT NULL,
   human_player     INTEGER NOT NULL,
+  preset           TEXT NOT NULL DEFAULT 'unknown',  -- difficulty level, or 'custom'; 'unknown' before levels existed
   mcts_n           INTEGER NOT NULL,
   c_puct           REAL    NOT NULL,
   leaf_parallelism INTEGER NOT NULL,

@@ -68,6 +68,7 @@ function record(over: Record<string, unknown> = {}): GameRecord {
     max_walls: 10,
     max_steps: 100,
     human_player: 0,
+    preset: "normal",
     mcts_n: 1000,
     c_puct: 1.4,
     leaf_parallelism: 8,
@@ -171,6 +172,11 @@ describe.skipIf(!DatabaseSync)("UPSERT_SQL", () => {
     const row = read()!;
     expect(row.outcome).toBe("draw");
     expect(row.winner).toBeNull();
+  });
+
+  it("stores the difficulty the game was played at", () => {
+    write({ preset: "easiest" });
+    expect(read()!.preset).toBe("easiest");
   });
 });
 
@@ -303,6 +309,7 @@ describe.skipIf(!DatabaseSync)("read statements", () => {
       move_count: 1,
       nick: "ada",
       model_id: "b9w10-v0",
+      preset: "normal",
       // 1 in SQLite, a boolean over the wire.
       webgpu_ok: true,
       country: "UY",

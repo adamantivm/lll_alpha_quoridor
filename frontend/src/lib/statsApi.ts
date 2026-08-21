@@ -40,6 +40,7 @@ export interface GameSummary {
   max_walls: number;
   max_steps: number;
   human_player: number;
+  preset: string;
   mcts_n: number;
   c_puct: number;
   leaf_parallelism: number;

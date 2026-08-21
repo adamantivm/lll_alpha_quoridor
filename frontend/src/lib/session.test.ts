@@ -115,6 +115,7 @@ describe("statsMetaFor / aiRequestFor", () => {
       maxWalls: 10,
       maxSteps: 100,
       humanPlayer: 1,
+      preset: "normal",
       mctsN: 64,
       cPuct: 2.1,
       leafParallelism: 4,
@@ -200,6 +201,12 @@ describe("the game lifecycle", () => {
       virtual_loss: 2,
     });
     expect(h.nicks).toEqual(["ada"]);
+  });
+
+  it("sends the chosen difficulty preset in the game record", () => {
+    const h = harness();
+    h.session.start(setup({ preset: "easy" }));
+    expect(h.sent[0]).toMatchObject({ preset: "easy" });
   });
 
   it("refuses to start, and records nothing, without a name", () => {

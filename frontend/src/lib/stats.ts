@@ -11,6 +11,7 @@
  * Kept free of Svelte and of globals (fetch, localStorage and navigator are all
  * injectable) so the whole thing unit-tests as plain TypeScript.
  */
+import type { Difficulty } from "./difficulty";
 import type { StateView } from "./types";
 
 export const STATS_SCHEMA_VERSION = 1;
@@ -48,6 +49,9 @@ export interface GameMeta {
   maxWalls: number;
   maxSteps: number;
   humanPlayer: number;
+  /** The level the game was played at, or 'custom' if the parameters were
+   *  hand-edited. Recorded so win rates can be read per level. */
+  preset: Difficulty;
   mctsN: number;
   cPuct: number;
   leafParallelism: number;
@@ -215,6 +219,7 @@ export function createStatsReporter(opts: ReporterOptions): StatsReporter {
       max_walls: g.meta.maxWalls,
       max_steps: g.meta.maxSteps,
       human_player: g.meta.humanPlayer,
+      preset: g.meta.preset,
       mcts_n: g.meta.mctsN,
       c_puct: g.meta.cPuct,
       leaf_parallelism: g.meta.leafParallelism,

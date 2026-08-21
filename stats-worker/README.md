@@ -147,6 +147,10 @@ database means an explicit migration:
 npx wrangler d1 execute quoridor-stats --remote --command "ALTER TABLE game ADD COLUMN nick TEXT NOT NULL DEFAULT 'unknown'"
 ```
 
+```bash
+npx wrangler d1 execute quoridor-stats --remote --command "ALTER TABLE game ADD COLUMN preset TEXT NOT NULL DEFAULT 'unknown'"
+```
+
 Add the same column to `schema.sql` so a fresh database matches.
 
 ## Querying

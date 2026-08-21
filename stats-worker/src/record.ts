@@ -16,6 +16,13 @@ export const SCHEMA_VERSION = 1;
  */
 export const DEFAULT_NICK = "unknown";
 
+export const DEFAULT_PRESET = "unknown";
+
+/** The levels the setup screen can send, plus the backfill default. */
+const PRESETS: readonly string[] = [
+  "easiest", "easy", "normal", "difficult", "custom", DEFAULT_PRESET,
+];
+
 /** Longest nick we store. Long enough for a real name, short enough not to be a payload. */
 export const MAX_NICK_LENGTH = 40;
 
@@ -48,6 +55,7 @@ export interface GameRecord {
   max_walls: number;
   max_steps: number;
   human_player: number;
+  preset: string;
   mcts_n: number;
   c_puct: number;
   leaf_parallelism: number;
@@ -95,6 +103,18 @@ export function parseNick(raw: unknown): string {
   // \u0000-\u001F and \u007F: newlines, NULs and friends have no business in a display name.
   const cleaned = raw.replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, MAX_NICK_LENGTH).trim();
   return cleaned.length > 0 ? cleaned : DEFAULT_NICK;
+}
+
+/**
+ * Absence is fine: a cached older frontend posts no preset at all, and its
+ * games are still worth recording. Garbage is not -- an unrecognised level
+ * would quietly poison any per-level statistic.
+ */
+export function parsePreset(raw: unknown): string {
+  if (raw === undefined || raw === null) return DEFAULT_PRESET;
+  if (typeof raw !== "string") throw new Error("preset must be a string or null");
+  if (!PRESETS.includes(raw)) throw new Error(`preset must be one of ${PRESETS.join("|")}`);
+  return raw;
 }
 
 function int(o: Record<string, unknown>, key: string, min: number, max: number): number {
@@ -213,6 +233,7 @@ export function validate(body: unknown): Validated {
         max_walls: int(o, "max_walls", 0, 100),
         max_steps,
         human_player: int(o, "human_player", 0, 1),
+        preset: parsePreset(o.preset),
         mcts_n: int(o, "mcts_n", 1, 1_000_000),
         c_puct: num(o, "c_puct", 0, 1000),
         leaf_parallelism: int(o, "leaf_parallelism", 1, 4096),
