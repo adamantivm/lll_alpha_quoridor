@@ -549,7 +549,8 @@ In `.github/workflows/stats-worker-ci.yml`, after the `Unit tests` step, replace
 
 ```bash
 cd /workspaces/lll_alpha_quoridor
-python3 - <<'PY'
+source .venv/bin/activate   # PyYAML lives here, not in the system python
+python - <<'PY'
 import yaml, sys
 for f in [".github/workflows/stats-worker-deploy.yml", ".github/workflows/stats-worker-ci.yml"]:
     d = yaml.safe_load(open(f))
@@ -568,7 +569,8 @@ Expected: `stats-worker-deploy.yml` lists jobs `check, deploy, upload, verify`, 
 
 ```bash
 cd /workspaces/lll_alpha_quoridor
-python3 - <<'PY'
+source .venv/bin/activate
+python - <<'PY'
 import yaml
 d = yaml.safe_load(open(".github/workflows/stats-worker-deploy.yml"))
 for name, job in d["jobs"].items():
@@ -583,11 +585,61 @@ PY
 
 Expected: `check: secret=False gated=False`, the other three `True/True`, and the final line. This is the invariant the whole design rests on; assert it rather than eyeball it.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 8: Document the arrangement and the way out of it**
+
+Replace the `npx wrangler deploy` block under "One-time setup" in
+`stats-worker/README.md` with a `## Deploying` section:
+
+````markdown
+## Deploying
+
+CI deploys this Worker. `.github/workflows/stats-worker-deploy.yml` runs on a
+push to `main` that touches `stats-worker/`, applies any pending D1 migrations,
+deploys, and then asks the running Worker which commit it is serving.
+
+The Cloudflare API token is a secret of the **`stats-worker` environment**, not
+of the repository. Only a job that declares `environment: stats-worker` can read
+it, and declaring it is what makes the job wait for a reviewer — so deleting the
+`environment:` line to skip the approval also deletes the credential. The
+environment is additionally pinned to the `main` branch.
+
+Approving a deploy is a separate grant from merging code:
+
+| To let someone… | Give them… |
+|---|---|
+| merge to `main` | collaborator access with **Write** |
+| approve a deploy | a slot in the environment's **Required reviewers** |
+
+Either without the other is fine. On a public repository a reviewer needs only
+read access, so the deploy button can be handed out without handing out the code.
+
+`workflow_dispatch` offers two rungs that do not touch production: `whoami`
+(checks the token, lists the applied migrations, and verifies the live table
+still matches `migrations/0001_baseline.sql`) and `versions-upload` (a real
+upload that serves no traffic and prints a preview URL).
+
+### Rollback
+
+```bash
+npx wrangler rollback
+```
+
+Or pin a specific earlier version:
+
+```bash
+npx wrangler versions list
+npx wrangler versions deploy <version-id>@100%
+```
+
+Neither reverts a migration. D1 migrations only go forward: undoing a schema
+change means writing the next migration.
+````
+
+- [ ] **Step 9: Commit**
 
 ```bash
 cd /workspaces/lll_alpha_quoridor
-git add .github/workflows/ stats-worker/scripts/ stats-worker/package.json
+git add .github/workflows/ stats-worker/scripts/ stats-worker/package.json stats-worker/README.md
 git commit -m "$(cat <<'EOF'
 vibe: deploy the stats worker from CI behind a gate
 
@@ -686,7 +738,14 @@ This task is a conversation, not a script. The user is on a phone and asked to b
 - Consumes: the merged PR, the environment from Task 4.
 - Produces: a deployed worker whose `/v1/health` reports the merged commit.
 
-- [ ] **Step 1: Open the PR**
+- [ ] **Step 1: Write the results file, then open the PR**
+
+Write `docs/superpowers/results/2026-08-24-worker-deploy.md` first — it is the PR
+body. What was built, why the token is an environment secret rather than a
+repository one, the four rungs and what each proves, and the table of what the
+user configures by hand. Say explicitly that no browser verification was run and
+why: this PR changes CI configuration and a health endpoint, and nothing it
+touches can alter a rendered page. Commit it, then:
 
 ```bash
 cd /workspaces/lll_alpha_quoridor
@@ -746,8 +805,8 @@ Then read the run for them: migrations applied (`0001_baseline.sql` recorded, no
 - [ ] **Step 7: Confirm from outside CI**
 
 ```bash
-curl -s 'https://quoridor-stats.<subdomain>.workers.dev/v1/health'
-curl -s 'https://quoridor-stats.<subdomain>.workers.dev/v1/games?limit=1' | head -c 300
+curl -s 'https://quoridor-stats.amarcu.workers.dev/v1/health'
+curl -s 'https://quoridor-stats.amarcu.workers.dev/v1/games?limit=1' | head -c 300
 ```
 
 Expected: the health endpoint reports the merged sha, and the list endpoint still answers — the same worker, still serving, with the schema untouched.
