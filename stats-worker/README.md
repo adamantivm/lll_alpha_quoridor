@@ -30,15 +30,29 @@ npx wrangler d1 create quoridor-stats
 ```
 
 Copy the printed `database_id` into `wrangler.toml`, then create the table
-locally and remotely:
+locally and remotely by applying the migrations:
 
 ```bash
-npx wrangler d1 execute quoridor-stats --local --file schema.sql
+npx wrangler d1 migrations apply quoridor-stats --local
 ```
 
 ```bash
-npx wrangler d1 execute quoridor-stats --remote --file schema.sql
+npx wrangler d1 migrations apply quoridor-stats --remote
 ```
+
+The schema lives in `migrations/`, and `migrations/0001_baseline.sql` is the
+table as it stands. It is idempotent (`CREATE TABLE IF NOT EXISTS`), so applying
+it to a database that already has the table does nothing but record it as
+applied — which is how the existing production database was adopted rather than
+rebuilt. Schema changes from here on are new numbered files:
+
+```bash
+npx wrangler d1 migrations create quoridor-stats "add the thing"
+```
+
+CI applies them before deploying the code (see `.github/workflows/stats-worker-deploy.yml`).
+Do not hand-write `ALTER TABLE` against the remote database any more: a change
+that is not in `migrations/` will be missing from every database created later.
 
 Deploy, and note the `https://quoridor-stats.<subdomain>.workers.dev` URL it
 prints:
@@ -139,19 +153,13 @@ game, not just the next one.
 
 ### Changing the schema
 
-`schema.sql` is `CREATE TABLE IF NOT EXISTS`, so re-running it against a
-database that already has the table does nothing. Adding a column to a live
-database means an explicit migration:
+The `nick` and `preset` columns were originally added by hand with
+`ALTER TABLE`; both are now part of `migrations/0001_baseline.sql`. A new
+column goes in a new migration file instead:
 
 ```bash
-npx wrangler d1 execute quoridor-stats --remote --command "ALTER TABLE game ADD COLUMN nick TEXT NOT NULL DEFAULT 'unknown'"
+npx wrangler d1 migrations create quoridor-stats "add the thing"
 ```
-
-```bash
-npx wrangler d1 execute quoridor-stats --remote --command "ALTER TABLE game ADD COLUMN preset TEXT NOT NULL DEFAULT 'unknown'"
-```
-
-Add the same column to `schema.sql` so a fresh database matches.
 
 ## Querying
 
@@ -196,8 +204,8 @@ npm test
 ```
 
 `record.test.ts` covers payload validation. `sql.test.ts` runs the real
-`UPSERT_SQL` against `schema.sql` in an in-memory SQLite (via `node:sqlite`,
-Node 22+; it skips on older runtimes) to prove the ordering guard behaves —
-stale revisions ignored, finished games never overwritten, undo-shortened move
-lists accepted. `index.test.ts` covers routing, CORS, body limits and rate
-limiting against a fake D1.
+`UPSERT_SQL` against `migrations/0001_baseline.sql` in an in-memory SQLite
+(via `node:sqlite`, Node 22+; it skips on older runtimes) to prove the
+ordering guard behaves — stale revisions ignored, finished games never
+overwritten, undo-shortened move lists accepted. `index.test.ts` covers
+routing, CORS, body limits and rate limiting against a fake D1.
