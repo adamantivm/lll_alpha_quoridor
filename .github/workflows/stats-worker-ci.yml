@@ -43,5 +43,11 @@ jobs:
       - name: Unit tests
         run: npm --prefix stats-worker run test
 
-      # Deployment stays manual (`npx wrangler deploy`): it needs a Cloudflare
-      # API token, and the worker changes far less often than the site.
+      # Needs no credentials at all: it resolves the D1, rate-limit and vars
+      # bindings and exits without contacting the API. Cheap insurance that a
+      # wrangler.toml edit cannot reach main broken.
+      - name: Dry run the deploy
+        run: npm --prefix stats-worker run deploy:dry
+
+      # Deployment lives in stats-worker-deploy.yml: it needs the Cloudflare
+      # token, which is a secret of the protected `stats-worker` environment.

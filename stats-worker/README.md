@@ -54,16 +54,48 @@ CI applies them before deploying the code (see `.github/workflows/stats-worker-d
 Do not hand-write `ALTER TABLE` against the remote database any more: a change
 that is not in `migrations/` will be missing from every database created later.
 
-Deploy, and note the `https://quoridor-stats.<subdomain>.workers.dev` URL it
-prints:
+## Deploying
+
+CI deploys this Worker. `.github/workflows/stats-worker-deploy.yml` runs on a
+push to `main` that touches `stats-worker/`, applies any pending D1 migrations,
+deploys, and then asks the running Worker which commit it is serving.
+
+The Cloudflare API token is a secret of the **`stats-worker` environment**, not
+of the repository. Only a job that declares `environment: stats-worker` can read
+it, and declaring it is what makes the job wait for a reviewer — so deleting the
+`environment:` line to skip the approval also deletes the credential. The
+environment is additionally pinned to the `main` branch.
+
+Approving a deploy is a separate grant from merging code:
+
+| To let someone… | Give them… |
+|---|---|
+| merge to `main` | collaborator access with **Write** |
+| approve a deploy | a slot in the environment's **Required reviewers** |
+
+Either without the other is fine. On a public repository a reviewer needs only
+read access, so the deploy button can be handed out without handing out the code.
+
+`workflow_dispatch` offers two rungs that do not touch production: `whoami`
+(checks the token, lists the applied migrations, and verifies the live table
+still matches `migrations/0001_baseline.sql`) and `versions-upload` (a real
+upload that serves no traffic and prints a preview URL).
+
+### Rollback
 
 ```bash
-npx wrangler deploy
+npx wrangler rollback
 ```
 
-That URL goes into `VITE_STATS_ENDPOINT` in `.github/workflows/pages.yml`. It is
-public, not a secret. If the play site ever moves to another origin, add it to
-`ALLOWED_ORIGINS` in `wrangler.toml` — requests from anywhere else are refused.
+Or pin a specific earlier version:
+
+```bash
+npx wrangler versions list
+npx wrangler versions deploy <version-id>@100%
+```
+
+Neither reverts a migration. D1 migrations only go forward: undoing a schema
+change means writing the next migration.
 
 ## Local development
 
