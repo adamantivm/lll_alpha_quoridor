@@ -200,21 +200,31 @@ describe("applyFilters", () => {
     game({ game_id: "1", undo_count: 2, nick: "ada" }),
     game({ game_id: "2", undo_count: 0, nick: "grace", model_id: "b5w2-mv1", app_version: "dev" }),
     game({ game_id: "3", undo_count: 0, nick: "ada", status: "abandoned", outcome: null }),
+    game({ game_id: "4", undo_count: 0, nick: "grace", outcome: "human_win" }),
   ];
   const ids = (f: Parameters<typeof applyFilters>[1]) => applyFilters(games, f).map((g) => g.game_id);
 
   it("excludes takebacks by default", () => {
     expect(DEFAULT_FILTERS.excludeUndos).toBe(true);
-    expect(ids(DEFAULT_FILTERS)).toEqual(["2", "3"]);
-    expect(ids({ ...DEFAULT_FILTERS, excludeUndos: false })).toEqual(["1", "2", "3"]);
+    expect(ids(DEFAULT_FILTERS)).toEqual(["2", "3", "4"]);
+    expect(ids({ ...DEFAULT_FILTERS, excludeUndos: false })).toEqual(["1", "2", "3", "4"]);
   });
 
   it("combines the other filters", () => {
     expect(ids({ ...DEFAULT_FILTERS, nick: "ada" })).toEqual(["3"]);
-    expect(ids({ ...DEFAULT_FILTERS, status: "finished" })).toEqual(["2"]);
+    expect(ids({ ...DEFAULT_FILTERS, status: "finished" })).toEqual(["2", "4"]);
     expect(ids({ ...DEFAULT_FILTERS, modelId: "b5w2-mv1" })).toEqual(["2"]);
     expect(ids({ ...DEFAULT_FILTERS, appVersion: "dev" })).toEqual(["2"]);
-    expect(ids({ ...DEFAULT_FILTERS, nick: "grace", modelId: "b9w10-v0" })).toEqual([]);
+    expect(ids({ ...DEFAULT_FILTERS, nick: "grace", modelId: "b9w10-v0" })).toEqual(["4"]);
+  });
+
+  it("filters by result, which only finished games have", () => {
+    expect(DEFAULT_FILTERS.outcome).toBeNull();
+    expect(ids({ ...DEFAULT_FILTERS, outcome: "human_win" })).toEqual(["4"]);
+    expect(ids({ ...DEFAULT_FILTERS, outcome: "ai_win" })).toEqual(["2"]);
+    expect(ids({ ...DEFAULT_FILTERS, outcome: "draw" })).toEqual([]);
+    // Combines with the rest rather than replacing them.
+    expect(ids({ ...DEFAULT_FILTERS, outcome: "human_win", nick: "ada" })).toEqual([]);
   });
 });
 

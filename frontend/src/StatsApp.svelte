@@ -18,6 +18,7 @@
     fetchGame,
     statsEndpoint,
     type GameDetail,
+    type GameOutcome,
     type GameStatus,
     type GameSummary,
   } from "./lib/statsApi";
@@ -167,6 +168,18 @@
         <option value="finished">finished</option>
         <option value="abandoned">walked away</option>
         <option value="in_progress">open</option>
+      </select>
+    </label>
+    <label>
+      Result
+      <select
+        value={filters.outcome ?? ""}
+        onchange={(e) => (filters.outcome = (e.currentTarget.value || null) as GameOutcome | null)}
+      >
+        <option value="">any</option>
+        <option value="human_win">human won</option>
+        <option value="ai_win">AI won</option>
+        <option value="draw">draw</option>
       </select>
     </label>
     <label>
