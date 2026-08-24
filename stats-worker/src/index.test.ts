@@ -116,9 +116,12 @@ function post(payload: string, headers: Record<string, string> = {}): Request {
 }
 
 describe("worker", () => {
-  it("answers health checks", async () => {
+  it("answers health checks with the build it is running", async () => {
     const res = await worker.fetch(new Request("https://stats.example/v1/health"), env());
     expect(res.status).toBe(200);
+    // No --define in a test build, so the guard in index.ts reports "dev"
+    // rather than throwing on an identifier that was never substituted.
+    expect(await res.json()).toEqual({ ok: true, version: "dev" });
   });
 
   it("404s unknown routes", async () => {
