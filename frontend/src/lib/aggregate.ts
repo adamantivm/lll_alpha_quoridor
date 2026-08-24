@@ -15,7 +15,7 @@
  *  - Win rates count finished games only. An abandoned game has no result, and
  *    counting it as anything would bias the rate.
  */
-import type { GameStatus, GameSummary } from "./statsApi";
+import type { GameOutcome, GameStatus, GameSummary } from "./statsApi";
 
 /**
  * Shortest game worth keeping. A record is written the moment a game starts, so
@@ -37,6 +37,8 @@ export interface Filters {
   appVersion: string | null;
   modelId: string | null;
   status: GameStatus | null;
+  /** Who won. Only finished games have one, so this also implies finished. */
+  outcome: GameOutcome | null;
 }
 
 export const DEFAULT_FILTERS: Filters = {
@@ -45,6 +47,7 @@ export const DEFAULT_FILTERS: Filters = {
   appVersion: null,
   modelId: null,
   status: null,
+  outcome: null,
 };
 
 export function applyFilters(games: readonly GameSummary[], f: Filters): GameSummary[] {
@@ -54,7 +57,8 @@ export function applyFilters(games: readonly GameSummary[], f: Filters): GameSum
       (f.nick === null || g.nick === f.nick) &&
       (f.appVersion === null || g.app_version === f.appVersion) &&
       (f.modelId === null || g.model_id === f.modelId) &&
-      (f.status === null || g.status === f.status),
+      (f.status === null || g.status === f.status) &&
+      (f.outcome === null || g.outcome === f.outcome),
   );
 }
 
