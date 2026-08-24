@@ -60,6 +60,14 @@ CI deploys this Worker. `.github/workflows/stats-worker-deploy.yml` runs on a
 push to `main` that touches `stats-worker/`, applies any pending D1 migrations,
 deploys, and then asks the running Worker which commit it is serving.
 
+The deployed URL lives in the **`STATS_ENDPOINT` repository variable**, as the
+full `https://.../v1/games` URL — the smoke test strips that suffix to find the
+Worker's base and check `/v1/health`, and `pages.yml` passes the same variable
+to the frontend build as `VITE_STATS_ENDPOINT`. It is public, not a secret. If
+the play site ever moves to another origin, add it to `ALLOWED_ORIGINS` in
+`wrangler.toml` — requests from anywhere else get no CORS headers and are
+refused.
+
 The Cloudflare API token is a secret of the **`stats-worker` environment**, not
 of the repository. Only a job that declares `environment: stats-worker` can read
 it, and declaring it is what makes the job wait for a reviewer — so deleting the

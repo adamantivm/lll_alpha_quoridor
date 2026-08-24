@@ -3,3 +3,5 @@ node_modules
 .wrangler
 # local secrets/overrides for `wrangler dev`
 .dev.vars
+# output of `npm run deploy:dry`
+dist-dry

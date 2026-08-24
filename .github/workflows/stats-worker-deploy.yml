@@ -126,7 +126,7 @@ jobs:
       # Schema first. New code may read a column the old schema lacks; old code
       # tolerates a column it does not know about.
       - name: Apply pending migrations
-        run: npm --prefix stats-worker exec wrangler -- d1 migrations apply quoridor-stats --remote -y
+        run: npm --prefix stats-worker exec wrangler -- d1 migrations apply quoridor-stats --remote
 
       # --define, never --var: `wrangler deploy` deletes every var not named on
       # the command line, so --var BUILD_SHA would drop ALLOWED_ORIGINS and
