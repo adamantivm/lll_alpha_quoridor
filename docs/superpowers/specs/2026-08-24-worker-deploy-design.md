@@ -51,19 +51,24 @@ outside contributor's PR cannot reach the token.
 
 ### Access, as configured
 
-Required reviewers: `adamantivm` and `alejandromarcu`. Any one of them approving
-is enough. "Prevent self-review" stays **off**: with two reviewers it would mean
+Required reviewers: `adamantivm`, `alejandromarcu` and `jonbinney`. Any one of
+them approving is enough. "Prevent self-review" stays **off**: with two reviewers it would mean
 neither can ship their own work when the other is away.
 
-Adding a third person later is two independent grants — collaborator with Write
+`jonbinney` is not a collaborator today, so both grants apply: a Write
+invitation, which he has to accept before it does anything, and a reviewer slot,
+which takes effect immediately because a public repository already gives him the
+read access a reviewer needs.
+
+Granting access is two independent halves — collaborator with Write
 to merge, required reviewer to approve — and either can be given without the
 other. On a public repository a reviewer needs only read access, which everyone
 has, so the approval button can be granted without granting the code.
 
 ### The account id is committed, the token is not
 
-`account_id` goes into `wrangler.toml` next to the `database_id` that is already
-there. Neither is a credential: both identify, neither authorises, and the
+`account_id = "d009a181b2d418a62c3365eaa5348a16"` goes into `wrangler.toml`
+next to the `database_id` that is already there. Neither is a credential: both identify, neither authorises, and the
 account id is visible in every dashboard URL. Committing it removes a
 configuration step and one more thing that can be wrong at 11pm.
 
