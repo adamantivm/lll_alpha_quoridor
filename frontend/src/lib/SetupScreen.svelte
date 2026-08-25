@@ -5,6 +5,7 @@
     type Difficulty, type Preset, type SearchParams,
   } from "./difficulty";
   import { MAX_NICK_LENGTH } from "./stats";
+  import HallOfFame from "./HallOfFame.svelte";
   let { models, selected, params, difficulty, humanPlayer, nick,
         onmodel, onparams, onpreset, onhumanplayer, onnick, onstart, onrules }: {
     models: ModelEntry[];
@@ -131,6 +132,8 @@
       </label>
     </fieldset>
   </details>
+
+  <HallOfFame modelId={selected.id} modelLabel={selected.label} />
 
   <button class="start" onclick={onstart} disabled={!named}>Start game</button>
   {#if !named}<small class="hint need-nick">Enter a nickname to start.</small>{/if}

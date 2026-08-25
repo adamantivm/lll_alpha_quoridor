@@ -170,12 +170,19 @@ so a late `pagehide` beacon cannot overwrite a win, and a retry that overtakes
 its predecessor is dropped. This is a `WHERE` clause on the `ON CONFLICT` —
 see `src/sql.ts`.
 
-`GET /v1/games?limit=&cursor=&status=` — the recorded games, newest first,
-without the move lists. Answers `{"games": [...], "next_cursor": "..."}`;
-`next_cursor` is null once there is nothing left. `limit` defaults to 200 and
-caps at 500. A `limit`, `cursor` or `status` the worker cannot use is a 400
-rather than a silent default — a caller paginating with an unparseable cursor
-would otherwise loop over page one forever.
+`GET /v1/games?limit=&cursor=&status=&outcome=&model_id=` — the recorded
+games, newest first, without the move lists. Answers `{"games": [...],
+"next_cursor": "..."}`; `next_cursor` is null once there is nothing left.
+`limit` defaults to 200 and caps at 500. A `limit`, `cursor`, `status`,
+`outcome` or `model_id` the worker cannot use is a 400 rather than a silent
+default — a caller paginating with an unparseable cursor would otherwise loop
+over page one forever.
+
+`outcome` (`human_win`, `ai_win` or `draw`) and `model_id` are each optional
+and independent, and combine with `status` and each other by `AND`. `outcome`
+is a fixed set, so an unlisted value is a 400 like `status`; `model_id` is
+matched exactly against the catalogue id, so one nothing was ever played with
+is an empty page, not a 404 — this filters a list, it does not look a model up.
 
 Pagination is keyset on the `(started_at, game_id)` pair, not `OFFSET`.
 `started_at` is a server timestamp with no uniqueness guarantee, so a plain

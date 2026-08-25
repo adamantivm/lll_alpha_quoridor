@@ -80,5 +80,9 @@ export function presetParams(d: ModelDefaults, p: Preset): SearchParams {
  */
 export function presetLabel(p: string): string {
   if (p === "custom") return "Custom";
-  return PRESET_LABEL[p as Preset] ?? "—";
+  // PRESETS.includes, not a bare index: PRESET_LABEL is a plain object, and
+  // indexing it with an unchecked string resolves inherited
+  // Object.prototype members for names like "constructor" instead of falling
+  // through to the placeholder.
+  return PRESETS.includes(p as Preset) ? PRESET_LABEL[p as Preset] : "—";
 }

@@ -3,6 +3,7 @@
   import ControlRail from "./lib/ControlRail.svelte";
   import RulesDialog from "./lib/RulesDialog.svelte";
   import SetupScreen from "./lib/SetupScreen.svelte";
+  import SiteFooter from "./lib/SiteFooter.svelte";
   import WebGpuBanner from "./lib/WebGpuBanner.svelte";
   import { AiClient } from "./lib/aiClient";
   import { presetParams, type Difficulty, type Preset, type SearchParams } from "./lib/difficulty";
@@ -152,6 +153,8 @@
 <RulesDialog open={showRules}
   boardSize={selected.board_size} maxWalls={selected.max_walls} maxSteps={selected.max_steps}
   onclose={() => { showRules = false; }} />
+
+<SiteFooter />
 
 <style>
   .layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }

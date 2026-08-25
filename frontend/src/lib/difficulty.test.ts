@@ -84,4 +84,11 @@ describe("presetLabel", () => {
     expect(presetLabel("unknown")).toBe("—");
     expect(presetLabel("")).toBe("—");
   });
+
+  // PRESET_LABEL is a plain object; indexing it with an unchecked string
+  // would resolve inherited Object.prototype members instead of dashing.
+  it("does not resolve Object.prototype members", () => {
+    expect(presetLabel("constructor")).toBe("—");
+    expect(presetLabel("toString")).toBe("—");
+  });
 });
