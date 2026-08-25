@@ -88,13 +88,18 @@ fetchRecentWins(endpoint, modelId, limit, fetchImpl): Promise<GameSummary[]>
 One GET, `limit=5&outcome=human_win&model_id=…`, about 2KB of response.
 
 **It revalidates every row it gets back** (`outcome === "human_win" &&
-model_id === modelId`). This is not defensive habit, it is the deploy story: the
-worker is deployed by hand and the frontend by CI, so the new page will at some
-point talk to a worker that has not learned the filters yet. An old
-`parseListQuery` ignores unknown parameters, so that worker would answer this
-request with *the five newest games of any kind* — a hall of fame full of losses
-by other people against other models. Revalidating turns that into an empty
-block, which is wrong but not a lie.
+model_id === modelId`). This is not defensive habit, it is the deploy story.
+
+The worker now deploys from CI, but not on the same trigger as the frontend: one
+merge to `main` publishes the site through Pages immediately and parks the
+worker's deploy waiting for a reviewer's approval. Between those two moments —
+minutes or days, depending on when someone clicks — the new page is live against
+a worker that has not learned the filters.
+
+An old `parseListQuery` ignores parameters it does not know, so that worker
+answers this request with *the five newest games of any kind*: a hall of fame
+full of other people's losses against other models, presented as human victories.
+Revalidating turns that into an empty block, which is wrong but not a lie.
 
 The play page has never read from the stats API — only written to it. This adds
 one GET to its load. It is not on the critical path: the component renders
@@ -152,8 +157,20 @@ both. Before/after screenshots committed under
 - A "you" highlight for the current nickname's own wins.
 - Any change to how games are recorded. This reads what is already written.
 
-## Dependency
+## Shipping
 
-The block stays empty in production until the stats worker is redeployed with
-the two new filters. That deploy is a separate piece of work, being designed
-alongside this one; the frontend is safe to ship first.
+Worker and frontend ship in one pull request. That is new: when this was
+designed, the worker deployed by hand, and the two halves had to be split so the
+frontend would not sit waiting on someone's laptop. `stats-worker-deploy.yml`
+removed that constraint.
+
+The merge does two things at once — Pages publishes the site, and the worker's
+deploy parks waiting for approval. So the ordering is: the block ships empty,
+and approving the parked deploy fills it. Nothing is broken in between, which is
+what the client-side revalidation above buys.
+
+An index on `model_id` is now cheap to add — schema changes are migration files
+that CI applies before the code. Still declined: this is a `LIMIT 5` over a
+table in the thousands, behind a 30-second cache. `idx_game_model` on
+`model_label` stays as it is. Worth revisiting only if the games table grows by
+orders of magnitude.
