@@ -31,13 +31,24 @@ are about to play.
 ```
 Recent human wins against 9x9, 10 walls (v0)
 
-Julian won as P2 on Normal in 43 moves, 12 Aug 2026.
-ana won as P1 on Difficult in 51 moves, 11 Aug 2026.
-kiko won as P2 on Easy in 38 moves, 9 Aug 2026.
+Julian won as P2 on Normal in 43 moves, 5 days ago.
+ana won as P1 on Difficult in 51 moves, 6 days ago.
+kiko won as P2 on Easy in 38 moves, 2 weeks ago.
 ```
 
-Per line: nick, side, level, move count, date. Not duration, not country — the
-sentence is already at the length where one more clause makes it a table again.
+Per line: nick, side, level, move count, and how long ago. Not duration, not
+country — the sentence is already at the length where one more clause makes it
+a table again.
+
+**How long ago, not a date.** An absolute date has to be formatted in some
+locale, and `toLocaleDateString(undefined, …)` renders the same victory
+differently for every visitor — including, inside an otherwise English
+sentence, `in 43 moves, 2026年8月12日.` Elsewhere in this repo that call is
+right, because the stats page is an operator's table read by the person whose
+locale it is. This is public English prose, so the phrase is built in English
+and rounded: `just now`, `3 hours ago`, `5 days ago`, `2 weeks ago`,
+`4 months ago`, `2 years ago`. It also says the thing a reader actually wants
+from a wall of recent victories — how fresh it is — without arithmetic.
 
 `human_player === 0` is P1. `preset` is `"unknown"` for games recorded before
 levels existed and `"custom"` for hand-edited parameters; those print as
