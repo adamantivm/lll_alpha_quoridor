@@ -1,6 +1,7 @@
 <script lang="ts">
   import GameList from "./lib/GameList.svelte";
   import Replay from "./lib/Replay.svelte";
+  import SiteFooter from "./lib/SiteFooter.svelte";
   import SummaryTable from "./lib/SummaryTable.svelte";
   import {
     DEFAULT_FILTERS,
@@ -225,6 +226,8 @@
     <p class="note">Loading that game…</p>
   {/if}
 {/if}
+
+<SiteFooter />
 
 <style>
   header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
