@@ -1,6 +1,11 @@
 name = "quoridor-stats"
 main = "src/index.ts"
 compatibility_date = "2026-08-01"
+# Not a credential: it identifies the account, it does not authorise anything,
+# and it is in the URL of every page of the Cloudflare dashboard. Committed so
+# CI needs no configuration -- a token that can see more than one account
+# leaves wrangler unable to choose, and it cannot prompt in a workflow.
+account_id = "d009a181b2d418a62c3365eaa5348a16"
 
 # Origins allowed to POST game records. The play site plus a local dev server;
 # anything else gets no CORS headers and a 403.
@@ -13,6 +18,9 @@ binding = "DB"
 database_name = "quoridor-stats"
 # Filled in by `npx wrangler d1 create quoridor-stats` -- see README.md.
 database_id = "126a44cf-fabf-42b1-b288-b6f8db340d65"
+# Explicit rather than left to wrangler's default: a default that moves would
+# take the schema with it.
+migrations_dir = "migrations"
 
 # Writes happen once per move, so a public endpoint needs a cap. 120 requests
 # per minute per IP is far above a human playing one game and far below anything

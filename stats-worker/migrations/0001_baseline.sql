@@ -3,8 +3,8 @@
 -- replayable up to the position the player walked away from.
 --
 -- Apply with:
---   npx wrangler d1 execute quoridor-stats --local  --file schema.sql
---   npx wrangler d1 execute quoridor-stats --remote --file schema.sql
+--   npx wrangler d1 migrations apply quoridor-stats --local
+--   npx wrangler d1 migrations apply quoridor-stats --remote
 
 CREATE TABLE IF NOT EXISTS game (
   game_id          TEXT PRIMARY KEY,  -- crypto.randomUUID() from the browser

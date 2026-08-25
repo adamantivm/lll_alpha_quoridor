@@ -19,6 +19,19 @@ import {
   rowToSummary,
 } from "./sql";
 
+/**
+ * The commit this Worker was built from, substituted at deploy time by
+ * `wrangler deploy --define BUILD_SHA:'"<sha>"'`. `--define` and not `--var`:
+ * `wrangler deploy` deletes every var not named on the command line, so a
+ * `--var` here would silently drop ALLOWED_ORIGINS and break CORS site-wide.
+ *
+ * `typeof` rather than a bare read: nothing substitutes the identifier in
+ * `wrangler dev` or under vitest, and reading an undeclared global there would
+ * throw. esbuild rewrites the whole expression when the define is present.
+ */
+declare const BUILD_SHA: string | undefined;
+const VERSION = typeof BUILD_SHA === "undefined" ? "dev" : BUILD_SHA;
+
 export interface Env {
   DB: D1Database;
   ALLOWED_ORIGINS: string;
@@ -161,7 +174,7 @@ export default {
       return new Response(null, { status: Object.keys(cors).length ? 204 : 403, headers: cors });
     }
     if (req.method === "GET" && url.pathname === "/v1/health") {
-      return json(200, { ok: true }, cors);
+      return json(200, { ok: true, version: VERSION }, cors);
     }
     // A browser request must come from a known origin. sendBeacon still sends
     // Origin during unload, so this does not cost us the abandoned-game record.

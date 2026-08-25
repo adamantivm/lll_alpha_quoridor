@@ -30,26 +30,107 @@ npx wrangler d1 create quoridor-stats
 ```
 
 Copy the printed `database_id` into `wrangler.toml`, then create the table
-locally and remotely:
+locally and remotely by applying the migrations:
 
 ```bash
-npx wrangler d1 execute quoridor-stats --local --file schema.sql
+npx wrangler d1 migrations apply quoridor-stats --local
 ```
 
 ```bash
-npx wrangler d1 execute quoridor-stats --remote --file schema.sql
+npx wrangler d1 migrations apply quoridor-stats --remote
 ```
 
-Deploy, and note the `https://quoridor-stats.<subdomain>.workers.dev` URL it
-prints:
+The schema lives in `migrations/`, and `migrations/0001_baseline.sql` is the
+table as it stands. It is idempotent (`CREATE TABLE IF NOT EXISTS`), so applying
+it to a database that already has the table does nothing but record it as
+applied — which is how the existing production database was adopted rather than
+rebuilt. Schema changes from here on are new numbered files:
 
 ```bash
-npx wrangler deploy
+npx wrangler d1 migrations create quoridor-stats "add the thing"
 ```
 
-That URL goes into `VITE_STATS_ENDPOINT` in `.github/workflows/pages.yml`. It is
-public, not a secret. If the play site ever moves to another origin, add it to
-`ALLOWED_ORIGINS` in `wrangler.toml` — requests from anywhere else are refused.
+CI applies them before deploying the code (see `.github/workflows/stats-worker-deploy.yml`).
+Do not hand-write `ALTER TABLE` against the remote database any more: a change
+that is not in `migrations/` will be missing from every database created later.
+
+## Deploying
+
+CI deploys this Worker. `.github/workflows/stats-worker-deploy.yml` runs on a
+push to `main` that touches `stats-worker/`, applies any pending D1 migrations,
+deploys, and then asks the running Worker which commit it is serving.
+
+The deployed URL lives in the **`STATS_ENDPOINT` repository variable**, as the
+full `https://.../v1/games` URL — the smoke test strips that suffix to find the
+Worker's base and check `/v1/health`, and `pages.yml` passes the same variable
+to the frontend build as `VITE_STATS_ENDPOINT`. It is public, not a secret. If
+the play site ever moves to another origin, add it to `ALLOWED_ORIGINS` in
+`wrangler.toml` — requests from anywhere else get no CORS headers and are
+refused.
+
+The Cloudflare API token is a secret of the **`stats-worker` environment**, not
+of the repository. Only a job that declares `environment: stats-worker` can read
+it, and declaring it is what makes the job wait for a reviewer — so deleting the
+`environment:` line to skip the approval also deletes the credential. The
+environment is additionally pinned to the `main` branch.
+
+Approving a deploy is a separate grant from merging code:
+
+| To let someone… | Give them… |
+|---|---|
+| merge to `main` | collaborator access with **Write** |
+| approve a deploy | a slot in the environment's **Required reviewers** |
+
+Either without the other is fine. On a public repository a reviewer needs only
+read access, so the deploy button can be handed out without handing out the code.
+
+`workflow_dispatch` offers two rungs that do not touch production: `whoami`
+(checks the token, lists the applied migrations, and verifies the live table's
+column names still match `migrations/0001_baseline.sql`) and `versions-upload`
+(a real upload that serves no traffic and prints a preview URL).
+
+**Before approving a run that a push to `main` parked waiting for review,**
+dispatch `whoami` and confirm it reports the live table matching the baseline
+first. Approving the parked run applies any pending migrations to production
+immediately; if the baseline has quietly drifted from what production actually
+holds, that approval records the drift as adopted -- permanently, and with
+nothing else to catch it.
+
+### If it fails partway
+
+Migrations applied but the deploy step failed: safe to leave as is. Migrations
+are additive and the previously-deployed code tolerates a column it does not
+know about; re-run the workflow once the deploy problem is fixed.
+
+Deploy succeeded but the smoke test came back red: production is already
+serving the new code -- do not re-run the deploy. Check `/v1/health` by hand
+first; the smoke test's failure usually just means the edge had not finished
+propagating within its retry window.
+
+### Rollback
+
+The operator responding to an incident may only have a phone, and this design
+deliberately keeps the Cloudflare credential off development machines -- so
+the primary recipe is the dashboard, not the CLI:
+
+Cloudflare dashboard → Workers & Pages → `quoridor-stats` → Deployments →
+pick the previous deployment → **Rollback**.
+
+With a laptop and a token, the CLI equivalent:
+
+```bash
+npx wrangler rollback
+```
+
+Or pin a specific earlier version:
+
+```bash
+npx wrangler versions list
+npx wrangler versions deploy <version-id>@100%
+```
+
+Neither reverts a migration. D1 migrations only go forward: undoing a schema
+change means writing the next migration.
 
 ## Local development
 
@@ -139,19 +220,13 @@ game, not just the next one.
 
 ### Changing the schema
 
-`schema.sql` is `CREATE TABLE IF NOT EXISTS`, so re-running it against a
-database that already has the table does nothing. Adding a column to a live
-database means an explicit migration:
+The `nick` and `preset` columns were originally added by hand with
+`ALTER TABLE`; both are now part of `migrations/0001_baseline.sql`. A new
+column goes in a new migration file instead:
 
 ```bash
-npx wrangler d1 execute quoridor-stats --remote --command "ALTER TABLE game ADD COLUMN nick TEXT NOT NULL DEFAULT 'unknown'"
+npx wrangler d1 migrations create quoridor-stats "add the thing"
 ```
-
-```bash
-npx wrangler d1 execute quoridor-stats --remote --command "ALTER TABLE game ADD COLUMN preset TEXT NOT NULL DEFAULT 'unknown'"
-```
-
-Add the same column to `schema.sql` so a fresh database matches.
 
 ## Querying
 
@@ -196,8 +271,8 @@ npm test
 ```
 
 `record.test.ts` covers payload validation. `sql.test.ts` runs the real
-`UPSERT_SQL` against `schema.sql` in an in-memory SQLite (via `node:sqlite`,
-Node 22+; it skips on older runtimes) to prove the ordering guard behaves —
-stale revisions ignored, finished games never overwritten, undo-shortened move
-lists accepted. `index.test.ts` covers routing, CORS, body limits and rate
-limiting against a fake D1.
+`UPSERT_SQL` against `migrations/0001_baseline.sql` in an in-memory SQLite
+(via `node:sqlite`, Node 22+; it skips on older runtimes) to prove the
+ordering guard behaves — stale revisions ignored, finished games never
+overwritten, undo-shortened move lists accepted. `index.test.ts` covers
+routing, CORS, body limits and rate limiting against a fake D1.

@@ -1,8 +1,8 @@
 /**
  * Exercises the statements in sql.ts against a real SQLite engine, using the
- * very schema.sql that gets applied to D1. The ordering guard and the
- * pagination predicate are both WHERE clauses, so asserting on anything less
- * than a real engine would only be testing a paraphrase.
+ * very migrations/0001_baseline.sql that gets applied to D1. The ordering
+ * guard and the pagination predicate are both WHERE clauses, so asserting on
+ * anything less than a real engine would only be testing a paraphrase.
  *
  * node:sqlite landed in Node 22; on older runtimes these tests skip rather than
  * fail, and the wrangler dev walkthrough in README.md covers the same ground.
@@ -45,7 +45,10 @@ try {
   // Node < 22: leave DatabaseSync null and skip the suite.
 }
 
-const schema = readFileSync(fileURLToPath(new URL("../schema.sql", import.meta.url)), "utf8");
+const schema = readFileSync(
+  fileURLToPath(new URL("../migrations/0001_baseline.sql", import.meta.url)),
+  "utf8",
+);
 
 function record(over: Record<string, unknown> = {}): GameRecord {
   const r = validate({
