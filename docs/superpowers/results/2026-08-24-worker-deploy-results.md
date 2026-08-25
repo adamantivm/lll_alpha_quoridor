@@ -137,3 +137,62 @@ The token is the one step that cannot be automated:
 | `can_admins_bypass` | `false` — the default was `true`, which would have let an admin skip the approval the design promises |
 | Branch policy | `main` only |
 | `jonbinney` | invited as a collaborator with Write; **the invitation is pending**, and GitHub refuses a pending invitee as a required reviewer, so his reviewer slot has to be added once he accepts |
+
+## Commissioning, as it actually went
+
+Merged as `9d7cdbf`. The four rungs were climbed in order on 2026-08-25.
+
+**`whoami`** — the token is an Account API Token on `Amarcu@gmail.com's Account`,
+account id `d009a181b2d418a62c3365eaa5348a16`, matching the value committed to
+`wrangler.toml`. `0001_baseline.sql` listed as pending against the remote
+database, and the schema check reported `baseline: 31 columns, live: 31 columns`
+— the live table's column names match the baseline, `preset` included. This is
+what made adopting the existing database safe rather than assumed; had it
+differed, commissioning would have stopped there.
+
+**`versions-upload`** — a real upload that took no traffic:
+
+```
+preview:    {"ok":true,"version":"9d7cdbf5ae0dfa35b3eef31add5b5ad5ea753a62"}
+production: {"ok":true}
+```
+
+The preview knew its own commit, proving `--define` survives the npm-script
+indirection in real CI; production still answered without a `version` field,
+proving nothing had reached a player yet.
+
+**`deploy`** — migrations first (`Executed 4 commands`, the expected no-op that
+records the baseline as adopted), then the code, then the smoke test.
+
+### The retry fix earned itself on the first deploy
+
+```
+attempt 1/5: live version is '', waiting for '9d7cdbf...'
+attempt 2/5: live version is '', waiting for '9d7cdbf...'
+the running Worker is 9d7cdbf5ae0dfa35b3eef31add5b5ad5ea753a62
+```
+
+The first two attempts hit the *old* Worker — the empty `version` is the old
+code, which had no such field. The edge took about ten seconds to propagate.
+
+The original smoke test used `curl --retry`, which retries transport and HTTP
+errors but not a `200` carrying the previous version, so it would have failed
+red on attempt one. Production would have been perfectly healthy and the report
+would have said otherwise, at the exact moment — first deploy, operator on a
+phone — when nobody could tell the difference. The whole-branch review flagged
+it as hypothetical; it fired immediately.
+
+### Verified from outside CI
+
+```
+$ curl -s https://quoridor-stats.amarcu.workers.dev/v1/health
+{"ok":true,"version":"9d7cdbf5ae0dfa35b3eef31add5b5ad5ea753a62"}
+```
+
+and `GET /v1/games?limit=1` still returns recorded games.
+
+### Outstanding
+
+`jonbinney` has a pending collaborator invitation. GitHub refuses a pending
+invitee as a required reviewer, so his approval slot must be added after he
+accepts — until then the reviewers are `adamantivm` and `alejandromarcu`.
