@@ -190,7 +190,10 @@ describe("parseListQuery", () => {
 
   it("defaults to the newest page", () => {
     const r = q("");
-    expect(r).toEqual({ ok: true, query: { limit: DEFAULT_LIMIT, cursor: null, status: null } });
+    expect(r).toEqual({
+      ok: true,
+      query: { limit: DEFAULT_LIMIT, cursor: null, status: null, outcome: null, model_id: null },
+    });
   });
 
   it("accepts a limit, a status and a cursor", () => {
@@ -200,9 +203,24 @@ describe("parseListQuery", () => {
       query: {
         limit: 5,
         status: "finished",
+        outcome: null,
+        model_id: null,
         cursor: { started_at: "2026-08-13T10:00:00.000Z", game_id: "g-1" },
       },
     });
+  });
+
+  it("accepts an outcome and a model id", () => {
+    const r = q("outcome=human_win&model_id=b9w10-v0");
+    expect(r.ok && r.query.outcome).toBe("human_win");
+    expect(r.ok && r.query.model_id).toBe("b9w10-v0");
+  });
+
+  it("rejects a bad outcome and an oversized model id", () => {
+    expect(q("outcome=human-win").ok).toBe(false);
+    expect(q("outcome=won").ok).toBe(false);
+    expect(q(`model_id=${"x".repeat(65)}`).ok).toBe(false);
+    expect(q("model_id=").ok).toBe(false);
   });
 
   // Silently defaulting a bad cursor would leave a paging caller looping over
@@ -291,6 +309,22 @@ describe.skipIf(!DatabaseSync)("read statements", () => {
   it("filters by status", () => {
     expect(list("status=finished").map((g) => g.game_id)).toEqual(["g-old"]);
     expect(list("status=in_progress").map((g) => g.game_id)).toEqual(["g-mid", "g-dup"]);
+  });
+
+  it("filters by outcome and by model, together and separately", () => {
+    seed(
+      { game_id: "g-other", status: "finished", outcome: "human_win", winner: 0, model_id: "b5w5-v0" },
+      "2026-08-13T13:00:00.000Z",
+    );
+    seed(
+      { game_id: "g-win", status: "finished", outcome: "human_win", winner: 0 },
+      "2026-08-13T14:00:00.000Z",
+    );
+
+    expect(list("outcome=human_win").map((g) => g.game_id)).toEqual(["g-win", "g-other"]);
+    expect(list("model_id=b5w5-v0").map((g) => g.game_id)).toEqual(["g-other"]);
+    expect(list("outcome=human_win&model_id=b5w5-v0").map((g) => g.game_id)).toEqual(["g-other"]);
+    expect(list("outcome=human_win&model_id=nope").map((g) => g.game_id)).toEqual([]);
   });
 
   it("returns no request metadata and no move lists", () => {

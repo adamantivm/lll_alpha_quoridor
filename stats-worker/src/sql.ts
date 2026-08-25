@@ -191,9 +191,15 @@ export interface ListQuery {
   limit: number;
   cursor: ListCursor | null;
   status: GameStatus | null;
+  outcome: GameOutcome | null;
+  model_id: string | null;
 }
 
 const STATUSES: readonly string[] = ["in_progress", "finished", "abandoned"];
+const OUTCOMES: readonly string[] = ["human_win", "ai_win", "draw"];
+
+/** Catalogue ids are short slugs like `b9w10-v0`; anything longer is not one. */
+const MAX_MODEL_ID = 64;
 
 /** `started_at` is a server ISO timestamp, so it never contains the separator. */
 export function encodeCursor(row: ListCursor): string {
@@ -227,6 +233,26 @@ export function parseListQuery(
     status = rawStatus as GameStatus;
   }
 
+  let outcome: GameOutcome | null = null;
+  const rawOutcome = params.get("outcome");
+  if (rawOutcome !== null) {
+    if (!OUTCOMES.includes(rawOutcome)) {
+      return { ok: false, error: `outcome must be one of ${OUTCOMES.join("|")}` };
+    }
+    outcome = rawOutcome as GameOutcome;
+  }
+
+  // An exact match, not a search: this filters a list, it does not look a model
+  // up, so an id nothing was played with is an empty page rather than a 404.
+  let model_id: string | null = null;
+  const rawModelId = params.get("model_id");
+  if (rawModelId !== null) {
+    if (!rawModelId || rawModelId.length > MAX_MODEL_ID) {
+      return { ok: false, error: `model_id must be 1 to ${MAX_MODEL_ID} characters` };
+    }
+    model_id = rawModelId;
+  }
+
   let cursor: ListCursor | null = null;
   const rawCursor = params.get("cursor");
   if (rawCursor !== null) {
@@ -241,7 +267,7 @@ export function parseListQuery(
     cursor = { started_at, game_id };
   }
 
-  return { ok: true, query: { limit, cursor, status } };
+  return { ok: true, query: { limit, cursor, status, outcome, model_id } };
 }
 
 /**
@@ -259,6 +285,14 @@ export function listStatement(q: ListQuery): { sql: string; binds: (string | num
   if (q.status !== null) {
     where.push("status = ?");
     binds.push(q.status);
+  }
+  if (q.outcome !== null) {
+    where.push("outcome = ?");
+    binds.push(q.outcome);
+  }
+  if (q.model_id !== null) {
+    where.push("model_id = ?");
+    binds.push(q.model_id);
   }
   if (q.cursor !== null) {
     where.push("(started_at < ? OR (started_at = ? AND game_id < ?))");
