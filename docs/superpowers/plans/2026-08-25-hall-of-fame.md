@@ -360,6 +360,14 @@ export async function fetchRecentWins(
 
 Create `frontend/src/lib/hallOfFame.ts`:
 
+> **Superseded.** The `winSentence` shown below formats an absolute date with
+> `toLocaleDateString(undefined, ...)`, which renders differently per
+> visitor locale -- a defect in the public prose this task exists to
+> produce. The human ruling replaced it with an always-English, locale-free
+> `timeAgo("N days ago")` helper. See
+> `docs/superpowers/specs/2026-08-24-hall-of-fame-design.md` for the current
+> design; do not reimplement the version below.
+
 ```ts
 /**
  * The sentences the play page's hall of fame is made of.
