@@ -690,11 +690,11 @@ import { createServer } from "node:http";
 // legacy preset of "unknown", a one-move game, and a nickname long enough to
 // try to push the card past a phone viewport.
 const GAMES = [
-  { game_id: "a", nick: "Julian",  human_player: 1, preset: "normal",    move_count: 43, started_at: "2026-08-12T18:30:00.000Z", outcome: "human_win", model_id: "MODEL_A" },
-  { game_id: "b", nick: "ana",     human_player: 0, preset: "difficult", move_count: 51, started_at: "2026-08-11T09:05:00.000Z", outcome: "human_win", model_id: "MODEL_A" },
-  { game_id: "c", nick: "kiko",    human_player: 1, preset: "custom",    move_count: 38, started_at: "2026-08-09T21:40:00.000Z", outcome: "human_win", model_id: "MODEL_A" },
-  { game_id: "d", nick: "someone", human_player: 0, preset: "unknown",   move_count:  1, started_at: "2026-08-02T11:00:00.000Z", outcome: "human_win", model_id: "MODEL_A" },
-  { game_id: "e", nick: "a-very-long-nickname-indeed", human_player: 1, preset: "easiest", move_count: 120, started_at: "2026-07-30T08:00:00.000Z", outcome: "human_win", model_id: "MODEL_A" },
+  { game_id: "a", nick: "Julian",  human_player: 1, preset: "normal",    move_count: 43, started_at: "2026-08-12T18:30:00.000Z", outcome: "human_win", model_id: "b9w10-v0" },
+  { game_id: "b", nick: "ana",     human_player: 0, preset: "difficult", move_count: 51, started_at: "2026-08-11T09:05:00.000Z", outcome: "human_win", model_id: "b9w10-v0" },
+  { game_id: "c", nick: "kiko",    human_player: 1, preset: "custom",    move_count: 38, started_at: "2026-08-09T21:40:00.000Z", outcome: "human_win", model_id: "b9w10-v0" },
+  { game_id: "d", nick: "someone", human_player: 0, preset: "unknown",   move_count:  1, started_at: "2026-08-02T11:00:00.000Z", outcome: "human_win", model_id: "b9w10-v0" },
+  { game_id: "e", nick: "a-very-long-nickname-indeed", human_player: 1, preset: "easiest", move_count: 120, started_at: "2026-07-30T08:00:00.000Z", outcome: "human_win", model_id: "b9w10-v0" },
 ];
 
 createServer((req, res) => {
@@ -719,13 +719,19 @@ createServer((req, res) => {
 EOF
 ```
 
-**Replace `MODEL_A` with a real catalogue id before running it.** Find the ids this build actually ships:
+The catalogue is `frontend/models/*/meta.json`, globbed at build time by
+`models.ts`, and this build ships exactly two: **`b9w10-v0`** and
+**`b5w2-mv1`**. The mock above serves games for `b9w10-v0` only, and that is
+deliberate: switching the picker to `b5w2-mv1` in Step 5 is what proves the
+empty state and the stale-response guard. Confirm both ids still exist before
+you rely on them:
 
 ```bash
-grep -rn '"id"' frontend/public/models/ 2>/dev/null | head
+ls frontend/models/
 ```
 
-or read `frontend/src/lib/models.ts` to see where the catalogue is loaded from. Use the id of the model the picker selects by default, so the block has data on first paint. Leave the other models absent from the mock on purpose — Step 5 uses that to prove the empty state and the stale-response guard.
+If the picker's default is not `b9w10-v0`, swap the mock's ids so the block has
+data on first paint.
 
 Then start it with `run_in_background` and confirm:
 
