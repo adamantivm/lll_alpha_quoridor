@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PAGE_SIZE, fetchAllGames, fetchGame, gameUrl, listUrl } from "./statsApi";
+import { PAGE_SIZE, fetchAllGames, fetchGame, fetchRecentWins, gameUrl, listUrl } from "./statsApi";
 import type { GameSummary } from "./statsApi";
 
 const ENDPOINT = "https://stats.example/v1/games";
@@ -137,5 +137,51 @@ describe("fetchGame", () => {
   it("fails loudly on a missing game", async () => {
     const fetchImpl = async () => jsonResponse({ error: "not found" }, 404);
     await expect(fetchGame(ENDPOINT, "g-1", fetchImpl)).rejects.toThrow(/HTTP 404: not found/);
+  });
+});
+
+describe("fetchRecentWins", () => {
+  const row = (over: Partial<GameSummary> = {}): GameSummary =>
+    ({ game_id: "g-1", outcome: "human_win", model_id: "b9w10-v0", ...over }) as GameSummary;
+
+  it("asks the worker for one model's wins", async () => {
+    const urls: string[] = [];
+    await fetchRecentWins(ENDPOINT, "b9w10-v0", 5, async (url) => {
+      urls.push(url);
+      return jsonResponse({ games: [], next_cursor: null });
+    });
+    const parsed = new URL(urls[0]);
+    expect(parsed.searchParams.get("limit")).toBe("5");
+    expect(parsed.searchParams.get("outcome")).toBe("human_win");
+    expect(parsed.searchParams.get("model_id")).toBe("b9w10-v0");
+  });
+
+  // A worker whose deploy is still waiting for an approval click does not know
+  // these parameters, and answers by ignoring them -- which would put other
+  // people's losses against other models on the wall as human victories.
+  it("drops rows an old worker returned unfiltered", async () => {
+    const games = [
+      row({ game_id: "keep" }),
+      row({ game_id: "wrong-outcome", outcome: "ai_win" }),
+      row({ game_id: "wrong-model", model_id: "b5w5-v0" }),
+    ];
+    const wins = await fetchRecentWins(ENDPOINT, "b9w10-v0", 5, async () =>
+      jsonResponse({ games, next_cursor: null }),
+    );
+    expect(wins.map((g) => g.game_id)).toEqual(["keep"]);
+  });
+
+  it("never returns more than asked for", async () => {
+    const games = Array.from({ length: 9 }, (_, i) => row({ game_id: `g-${i}` }));
+    const wins = await fetchRecentWins(ENDPOINT, "b9w10-v0", 5, async () =>
+      jsonResponse({ games, next_cursor: null }),
+    );
+    expect(wins).toHaveLength(5);
+  });
+
+  it("rejects rather than pretending there are no wins", async () => {
+    await expect(
+      fetchRecentWins(ENDPOINT, "b9w10-v0", 5, async () => jsonResponse({ error: "boom" }, 500)),
+    ).rejects.toThrow();
   });
 });

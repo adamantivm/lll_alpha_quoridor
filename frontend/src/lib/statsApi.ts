@@ -79,6 +79,39 @@ export function listUrl(endpoint: string, limit: number, cursor: string | null):
   return url.href;
 }
 
+/** How many victories the play page's hall of fame shows. */
+export const RECENT_WINS_LIMIT = 5;
+
+export function recentWinsUrl(endpoint: string, modelId: string, limit: number): string {
+  const url = new URL(endpoint);
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("outcome", "human_win");
+  url.searchParams.set("model_id", modelId);
+  return url.href;
+}
+
+/**
+ * The most recent human wins against one model, newest first.
+ *
+ * Every row is revalidated rather than trusted. A worker that predates these
+ * filters ignores parameters it does not know and answers with the newest games
+ * of any kind -- and the site can be live against exactly that worker, because
+ * a merge publishes the page through Pages immediately while the worker's
+ * deploy waits for a reviewer's approval. Filtering here turns a wall of other
+ * people's losses into an empty block.
+ */
+export async function fetchRecentWins(
+  endpoint: string,
+  modelId: string,
+  limit: number,
+  fetchImpl: FetchLike,
+): Promise<GameSummary[]> {
+  const page = asPage(await getJson(recentWinsUrl(endpoint, modelId, limit), fetchImpl));
+  return page.games
+    .filter((g) => g.outcome === "human_win" && g.model_id === modelId)
+    .slice(0, limit);
+}
+
 export function gameUrl(endpoint: string, gameId: string): string {
   return `${endpoint.replace(/\/+$/, "")}/${encodeURIComponent(gameId)}`;
 }
