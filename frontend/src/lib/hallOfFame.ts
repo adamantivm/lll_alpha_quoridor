@@ -5,7 +5,7 @@
  * DOM -- this repo has no component test harness, and prose is the part worth
  * testing anyway.
  */
-import { PRESET_LABEL, type Preset } from "./difficulty";
+import { PRESETS, PRESET_LABEL, type Preset } from "./difficulty";
 import type { GameSummary } from "./statsApi";
 
 /**
@@ -15,16 +15,19 @@ import type { GameSummary } from "./statsApi";
  * means the game predates levels. Neither is a level, and neither is a reason
  * to leave a real victory off the wall.
  *
- * `Object.hasOwn` guards against `preset` being an arbitrary string rather
- * than a real `Preset`: a plain index (`PRESET_LABEL[preset as Preset]`)
+ * `PRESETS.includes`, not a plain index: `PRESET_LABEL[preset as Preset]`
  * would resolve to inherited `Object.prototype` members for names like
- * `"constructor"` instead of falling through to the unknown-level phrase.
- * The worker allowlists `preset` at write time, so today no recorded game can
- * trigger this, but the function is exported and takes a bare `string`.
+ * `"constructor"` instead of falling through to the unknown-level phrase --
+ * and unlike `Object.hasOwn`, this stays inside Vite's default target, which
+ * does not polyfill ES2022. This sits in a template expression, so throwing
+ * here on an older browser would take out the whole setup screen, not just
+ * this block. The worker allowlists `preset` at write time, so today no
+ * recorded game can trigger this, but the function is exported and takes a
+ * bare `string`.
  */
 export function levelPhrase(preset: string): string {
   if (preset === "custom") return "on custom settings";
-  if (Object.hasOwn(PRESET_LABEL, preset)) return `on ${PRESET_LABEL[preset as Preset]}`;
+  if (PRESETS.includes(preset as Preset)) return `on ${PRESET_LABEL[preset as Preset]}`;
   return "on an unknown level";
 }
 

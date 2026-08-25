@@ -97,8 +97,19 @@ export function recentWinsUrl(endpoint: string, modelId: string, limit: number):
  * filters ignores parameters it does not know and answers with the newest games
  * of any kind -- and the site can be live against exactly that worker, because
  * a merge publishes the page through Pages immediately while the worker's
- * deploy waits for a reviewer's approval. Filtering here turns a wall of other
- * people's losses into an empty block.
+ * deploy waits for a reviewer's approval.
+ *
+ * `model_id` is `TEXT NOT NULL` with SQLite's default BINARY collation, and
+ * `outcome` is compared the same way, so a worker that filtered correctly can
+ * never hand back a row this check would drop -- SQL `=` and JS `===` agree.
+ * That makes any dropped row proof the worker did not filter, not evidence
+ * that there are no wins, so a partial or total mismatch throws instead of
+ * quietly resolving to an empty array: an old worker answering with the
+ * newest games of any kind must not read to a visitor as "nobody has ever
+ * beaten this model," which is what an empty array becomes once the
+ * component renders it. A `games: []` response is the one case where
+ * revalidation cannot disagree with the worker, and it still resolves to
+ * `[]` -- that is what a genuine zero wins looks like.
  */
 export async function fetchRecentWins(
   endpoint: string,
@@ -107,9 +118,13 @@ export async function fetchRecentWins(
   fetchImpl: FetchLike,
 ): Promise<GameSummary[]> {
   const page = asPage(await getJson(recentWinsUrl(endpoint, modelId, limit), fetchImpl));
-  return page.games
-    .filter((g) => g.outcome === "human_win" && g.model_id === modelId)
-    .slice(0, limit);
+  const filtered = page.games.filter((g) => g.outcome === "human_win" && g.model_id === modelId);
+  if (filtered.length !== page.games.length) {
+    throw new Error(
+      "the stats worker returned games it should have filtered by outcome/model_id -- its deploy has not caught up yet",
+    );
+  }
+  return filtered.slice(0, limit);
 }
 
 export function gameUrl(endpoint: string, gameId: string): string {

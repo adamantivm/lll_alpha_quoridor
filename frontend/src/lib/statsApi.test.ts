@@ -158,17 +158,47 @@ describe("fetchRecentWins", () => {
 
   // A worker whose deploy is still waiting for an approval click does not know
   // these parameters, and answers by ignoring them -- which would put other
-  // people's losses against other models on the wall as human victories.
-  it("drops rows an old worker returned unfiltered", async () => {
+  // people's losses against other models on the wall as human victories. Any
+  // row revalidation drops is proof of that (outcome/model_id are compared
+  // with ordinary equality on both sides), so a mixed response must reject
+  // rather than quietly resolve to the rows that do match.
+  it("rejects a response mixing matching and non-matching rows", async () => {
     const games = [
       row({ game_id: "keep" }),
       row({ game_id: "wrong-outcome", outcome: "ai_win" }),
       row({ game_id: "wrong-model", model_id: "b5w5-v0" }),
     ];
+    await expect(
+      fetchRecentWins(ENDPOINT, "b9w10-v0", 5, async () => jsonResponse({ games, next_cursor: null })),
+    ).rejects.toThrow();
+  });
+
+  // What an old worker actually returns: a game is written as in_progress,
+  // with outcome null, before a single move is played, so the newest rows of
+  // any kind are overwhelmingly outcome: null. This must not resolve to [],
+  // which the component would render as "nobody has ever beaten this model."
+  it("rejects a response of games an old worker never filtered at all", async () => {
+    const games = Array.from({ length: 5 }, (_, i) => row({ game_id: `g-${i}`, outcome: null }));
+    await expect(
+      fetchRecentWins(ENDPOINT, "b9w10-v0", 5, async () => jsonResponse({ games, next_cursor: null })),
+    ).rejects.toThrow();
+  });
+
+  // The one case where revalidation cannot disagree with the worker: a
+  // genuine zero wins must still read as zero wins, not as an error.
+  it("resolves to an empty array on a genuine zero-wins response", async () => {
+    const wins = await fetchRecentWins(ENDPOINT, "b9w10-v0", 5, async () =>
+      jsonResponse({ games: [], next_cursor: null }),
+    );
+    expect(wins).toEqual([]);
+  });
+
+  it("resolves with every row when the worker filtered correctly", async () => {
+    const games = [row({ game_id: "a" }), row({ game_id: "b" }), row({ game_id: "c" })];
     const wins = await fetchRecentWins(ENDPOINT, "b9w10-v0", 5, async () =>
       jsonResponse({ games, next_cursor: null }),
     );
-    expect(wins.map((g) => g.game_id)).toEqual(["keep"]);
+    expect(wins.map((g) => g.game_id)).toEqual(["a", "b", "c"]);
   });
 
   it("never returns more than asked for", async () => {
