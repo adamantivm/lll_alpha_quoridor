@@ -85,11 +85,38 @@ Either without the other is fine. On a public repository a reviewer needs only
 read access, so the deploy button can be handed out without handing out the code.
 
 `workflow_dispatch` offers two rungs that do not touch production: `whoami`
-(checks the token, lists the applied migrations, and verifies the live table
-still matches `migrations/0001_baseline.sql`) and `versions-upload` (a real
-upload that serves no traffic and prints a preview URL).
+(checks the token, lists the applied migrations, and verifies the live table's
+column names still match `migrations/0001_baseline.sql`) and `versions-upload`
+(a real upload that serves no traffic and prints a preview URL).
+
+**Before approving a run that a push to `main` parked waiting for review,**
+dispatch `whoami` and confirm it reports the live table matching the baseline
+first. Approving the parked run applies any pending migrations to production
+immediately; if the baseline has quietly drifted from what production actually
+holds, that approval records the drift as adopted -- permanently, and with
+nothing else to catch it.
+
+### If it fails partway
+
+Migrations applied but the deploy step failed: safe to leave as is. Migrations
+are additive and the previously-deployed code tolerates a column it does not
+know about; re-run the workflow once the deploy problem is fixed.
+
+Deploy succeeded but the smoke test came back red: production is already
+serving the new code -- do not re-run the deploy. Check `/v1/health` by hand
+first; the smoke test's failure usually just means the edge had not finished
+propagating within its retry window.
 
 ### Rollback
+
+The operator responding to an incident may only have a phone, and this design
+deliberately keeps the Cloudflare credential off development machines -- so
+the primary recipe is the dashboard, not the CLI:
+
+Cloudflare dashboard → Workers & Pages → `quoridor-stats` → Deployments →
+pick the previous deployment → **Rollback**.
+
+With a laptop and a token, the CLI equivalent:
 
 ```bash
 npx wrangler rollback

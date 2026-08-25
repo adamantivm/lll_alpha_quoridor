@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * Assert that the live D1 table is the table migrations/0001_baseline.sql
- * describes.
+ * Assert that the live D1 table's column names match the table
+ * migrations/0001_baseline.sql describes. This checks names only -- not
+ * types, defaults, nullability, or indexes -- so it catches a column
+ * added or dropped by hand, not a column redefined in place.
  *
  * The baseline is idempotent, which is what lets it adopt the existing
  * production database instead of rebuilding it -- and is also why it would
@@ -50,7 +52,7 @@ const extra = live.filter((c) => !expected.includes(c));
 
 console.log(`baseline: ${expected.length} columns, live: ${live.length} columns`);
 if (missing.length === 0 && extra.length === 0) {
-  console.log("the live table matches the baseline");
+  console.log("the live table's column names match the baseline");
   process.exit(0);
 }
 if (missing.length) console.error(`missing from the live table: ${missing.join(", ")}`);

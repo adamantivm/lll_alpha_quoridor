@@ -27,12 +27,6 @@ on:
 permissions:
   contents: read
 
-# One at a time, and never cancelled midway: interrupting a deploy is worse
-# than letting it finish and having the next run supersede it.
-concurrency:
-  group: stats-worker-deploy
-  cancel-in-progress: false
-
 env:
   WRANGLER_SEND_METRICS: 'false'
 
@@ -62,8 +56,6 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     environment: stats-worker
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -72,11 +64,22 @@ jobs:
           cache: npm
           cache-dependency-path: stats-worker/package-lock.json
       - run: npm --prefix stats-worker ci
+      # `npm --prefix <dir> exec` only resolves the binary -- it does not chdir,
+      # so a wrangler invoked that way finds no wrangler.toml from the repo
+      # root where every step here runs. `npm --prefix <dir> run <script>`
+      # does chdir, which is why every Cloudflare-touching step below goes
+      # through a package.json script instead.
       - name: Who this token belongs to, and what it may do
-        run: npm --prefix stats-worker exec wrangler -- whoami
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npm --prefix stats-worker run cf:whoami
       - name: Which migrations the live database has applied
-        run: npm --prefix stats-worker exec wrangler -- d1 migrations list quoridor-stats --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npm --prefix stats-worker run cf:migrations-list -- --remote
       - name: The live table matches the baseline
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: npm --prefix stats-worker run check:remote-schema
 
   upload:
@@ -85,8 +88,6 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     environment: stats-worker
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -99,8 +100,10 @@ jobs:
       # the rung that proves the token can write to Cloudflare at all, without
       # anything reaching a player.
       - name: Upload
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: >
-          npm --prefix stats-worker exec wrangler -- versions upload
+          npm --prefix stats-worker run cf:versions-upload --
           --define BUILD_SHA:'"${{ github.sha }}"'
 
   deploy:
@@ -112,8 +115,15 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     environment: stats-worker
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    # One at a time, and never cancelled midway: interrupting a deploy is worse
+    # than letting it finish and having the next run supersede it. Scoped to
+    # this job, not the whole workflow -- the read-only `verify` and `upload`
+    # rungs must stay free to run (or queue and finish) independently of a
+    # `deploy` that is parked waiting for approval, or the commissioning
+    # runbook's own first steps would block each other.
+    concurrency:
+      group: stats-worker-deploy
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -126,30 +136,51 @@ jobs:
       # Schema first. New code may read a column the old schema lacks; old code
       # tolerates a column it does not know about.
       - name: Apply pending migrations
-        run: npm --prefix stats-worker exec wrangler -- d1 migrations apply quoridor-stats --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npm --prefix stats-worker run cf:migrations-apply -- --remote
 
       # --define, never --var: `wrangler deploy` deletes every var not named on
       # the command line, so --var BUILD_SHA would drop ALLOWED_ORIGINS and
       # break CORS for the whole site.
       - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: >
-          npm --prefix stats-worker exec wrangler -- deploy
+          npm --prefix stats-worker run cf:deploy --
           --define BUILD_SHA:'"${{ github.sha }}"'
 
       # A zero exit says the command succeeded, not that the new code is
-      # serving. Ask the running Worker which commit it is.
+      # serving. Ask the running Worker which commit it is -- up to five
+      # times, about 20s apart end to end, because Cloudflare propagates a
+      # deploy across its edge over a span of seconds and a 200 carrying the
+      # previous sha is not a transport error curl's own --retry would catch.
       - name: Smoke test the deployed Worker
         env:
           ENDPOINT: ${{ vars.STATS_ENDPOINT }}
         run: |
           set -euo pipefail
           base="${ENDPOINT%/v1/games}"
-          echo "checking ${base}/v1/health"
-          body=$(curl -fsS --retry 5 --retry-delay 3 --retry-all-errors "${base}/v1/health")
-          echo "$body"
-          live=$(printf '%s' "$body" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).version??""))')
-          if [ "$live" != "${{ github.sha }}" ]; then
-            echo "::error::deployed version is '${live}', expected '${{ github.sha }}'"
+          if [ "$base" = "$ENDPOINT" ]; then
+            echo "::error::STATS_ENDPOINT does not end in /v1/games"
             exit 1
           fi
-          echo "the running Worker is ${live}"
+          echo "checking ${base}/v1/health"
+          attempts=5
+          live="(never checked)"
+          for i in $(seq 1 "$attempts"); do
+            if body=$(curl -fsS --retry 5 --retry-delay 3 --retry-all-errors "${base}/v1/health"); then
+              live=$(printf '%s' "$body" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).version??""))')
+              if [ "$live" = "${{ github.sha }}" ]; then
+                echo "the running Worker is ${live}"
+                exit 0
+              fi
+              echo "attempt ${i}/${attempts}: live version is '${live}', waiting for '${{ github.sha }}'"
+            else
+              live="(request failed)"
+              echo "attempt ${i}/${attempts}: health check request failed"
+            fi
+            if [ "$i" -lt "$attempts" ]; then sleep 5; fi
+          done
+          echo "::error::deployed version is '${live}', expected '${{ github.sha }}'"
+          exit 1
