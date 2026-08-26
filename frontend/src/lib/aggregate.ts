@@ -42,7 +42,10 @@ export interface Filters {
 }
 
 export const DEFAULT_FILTERS: Filters = {
-  excludeUndos: true,
+  // Off by default: takebacks are common -- a mis-tap on a phone has to be
+  // undone -- and hiding those games made the table disagree with the play
+  // page's hall of fame, which counts them.
+  excludeUndos: false,
   nick: null,
   appVersion: null,
   modelId: null,
